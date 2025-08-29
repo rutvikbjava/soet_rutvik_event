@@ -5,6 +5,15 @@ import { ParticipantLandingPage } from "./components/ParticipantLandingPage";
 import { SuperAdminLogin } from "./components/SuperAdminLogin";
 import { SuperAdminDashboard } from "./components/SuperAdminDashboard";
 
+// Watermark Component
+const Watermark = () => (
+  <div className="fixed bottom-4 right-4 z-50 pointer-events-none">
+    <p className="text-xs text-white/30 font-light tracking-wide select-none">
+      rutvik burra devs
+    </p>
+  </div>
+);
+
 export default function App() {
   const [viewMode, setViewMode] = useState<"participant" | "organizer">("participant");
   const [showSuperAdminLogin, setShowSuperAdminLogin] = useState(false);
@@ -91,6 +100,9 @@ export default function App() {
           }
         }}
       />
+
+      {/* Watermark */}
+      <Watermark />
     </div>
   );
 }
