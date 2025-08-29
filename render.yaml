@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: event-center
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CONVEX_DEPLOYMENT
+        fromService:
+          type: web
+          name: event-center
+          envVarKey: CONVEX_DEPLOYMENT
+      - key: VITE_CONVEX_URL
+        fromService:
+          type: web
+          name: event-center
+          envVarKey: VITE_CONVEX_URL
+    healthCheckPath: /
