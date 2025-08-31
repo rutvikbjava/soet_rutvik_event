@@ -89,23 +89,24 @@ export function ParticipantRegistrationForm({ onClose }: ParticipantRegistration
   };
 
   return (
-    <div className="fixed inset-0 bg-charcoal/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-dark-blue/95 backdrop-blur-md border border-medium-blue/30 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl">
+    <div className="fixed inset-0 bg-charcoal/80 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
+      <div className="bg-dark-blue/95 backdrop-blur-md border border-medium-blue/30 rounded-xl sm:rounded-2xl w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-medium-blue/30">
-          <div>
-            <h2 className="text-3xl font-bold text-silver mb-2">
-              🚀 Hackathon Registration
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-medium-blue/30">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-silver mb-1 sm:mb-2 truncate">
+              🚀 Technical Fest Registration
             </h2>
-            <p className="text-silver/70">
+            <p className="text-silver/70 text-sm sm:text-base hidden sm:block">
               Join the most exciting coding competition of the year!
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-medium-blue/30 rounded-lg transition-colors text-silver/70 hover:text-silver"
+            className="p-2 hover:bg-medium-blue/30 rounded-lg transition-colors text-silver/70 hover:text-silver touch-manipulation ml-2"
+            aria-label="Close modal"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -113,11 +114,11 @@ export function ParticipantRegistrationForm({ onClose }: ParticipantRegistration
 
         {/* Test Notification Banner */}
         {testNotification && (testNotification.hasActiveTests || testNotification.hasUpcomingTests) && (
-          <div className="mx-6 mt-4 p-4 bg-gradient-to-r from-accent-blue/20 to-electric-blue/20 border border-accent-blue/30 rounded-xl">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">🎯</span>
-              <div>
-                <h3 className="text-lg font-bold text-silver">Pre-Qualifier Tests Available!</h3>
+          <div className="mx-4 sm:mx-6 mt-3 sm:mt-4 p-3 sm:p-4 bg-gradient-to-r from-accent-blue/20 to-electric-blue/20 border border-accent-blue/30 rounded-lg sm:rounded-xl">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <span className="text-xl sm:text-2xl">🎯</span>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base sm:text-lg font-bold text-silver">Pre-Qualifier Tests Available!</h3>
                 <p className="text-silver/80 text-sm">
                   {testNotification.hasActiveTests && (
                     <>

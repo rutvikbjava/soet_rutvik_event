@@ -32,6 +32,19 @@ export function SuperAdminLogin({ onSuccess, onCancel }: SuperAdminLoginProps) {
       const SUPER_ADMIN_EMAIL = "rutvikburra@gmail.com";
       const SUPER_ADMIN_PASSWORD = "rutvikburra1234567890@#E";
 
+      console.log("Super Admin Login Attempt:", {
+        providedEmail: credentials.email,
+        expectedEmail: SUPER_ADMIN_EMAIL,
+        emailMatch: credentials.email === SUPER_ADMIN_EMAIL,
+        providedPassword: credentials.password,
+        expectedPassword: SUPER_ADMIN_PASSWORD,
+        passwordMatch: credentials.password === SUPER_ADMIN_PASSWORD,
+        providedEmailLength: credentials.email.length,
+        expectedEmailLength: SUPER_ADMIN_EMAIL.length,
+        providedPasswordLength: credentials.password.length,
+        expectedPasswordLength: SUPER_ADMIN_PASSWORD.length
+      });
+
       if (credentials.email === SUPER_ADMIN_EMAIL && credentials.password === SUPER_ADMIN_PASSWORD) {
         toast.success("Super Admin access granted! 👑");
         onSuccess();

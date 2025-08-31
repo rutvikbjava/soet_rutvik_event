@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Toaster } from "sonner";
 import { AuthWrapper } from "./components/AuthWrapper";
 import { ParticipantLandingPage } from "./components/ParticipantLandingPage";
+import { DevAuthHelper } from "./components/DevAuthHelper";
 import { SuperAdminLogin } from "./components/SuperAdminLogin";
 import { SuperAdminDashboard } from "./components/SuperAdminDashboard";
 
@@ -61,17 +62,8 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-deep-blue via-dark-blue to-medium-blue relative overflow-hidden">
-      {/* Animated background particles */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.1%22%3E%3Ccircle%20cx%3D%227%22%20cy%3D%227%22%20r%3D%221%22/%3E%3Ccircle%20cx%3D%2227%22%20cy%3D%2227%22%20r%3D%221%22/%3E%3Ccircle%20cx%3D%2247%22%20cy%3D%2247%22%20r%3D%221%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] animate-pulse"></div>
-        <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-accent-blue rounded-full animate-ping"></div>
-        <div className="absolute top-3/4 right-1/3 w-1 h-1 bg-electric-blue rounded-full animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 right-1/4 w-1.5 h-1.5 bg-neon-blue rounded-full animate-ping delay-500"></div>
-      </div>
-
-
-
+    <div className="min-h-screen relative overflow-hidden">
+      <DevAuthHelper />
       <main className="relative z-10">
         {viewMode === "participant" ? (
           <ParticipantLandingPage onSwitchToOrganizer={() => setViewMode("organizer")} />

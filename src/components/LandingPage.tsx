@@ -45,7 +45,7 @@ export function LandingPage({ onSwitchToParticipant }: LandingPageProps) {
             Organizer Hub
           </h1>
           <p className="text-xl md:text-2xl text-silver/80 mb-8 leading-relaxed">
-            Manage hackathons, review participant registrations, and create extraordinary events
+            Manage technical events, review participant registrations, and create extraordinary experiences
             that inspire the next generation of innovators.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
