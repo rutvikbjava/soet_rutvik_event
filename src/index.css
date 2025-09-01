@@ -214,3 +214,23 @@ body {
 .cosmic-input:focus {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1), 0 0 20px rgba(59, 130, 246, 0.1);
 }
+
+/* Shooting star animation */
+@keyframes shooting-star {
+  0% {
+    transform: translateX(-100px) translateY(-100px) scale(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+    transform: translateX(0px) translateY(0px) scale(1);
+  }
+  90% {
+    opacity: 1;
+    transform: translateX(300px) translateY(300px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(400px) translateY(400px) scale(0);
+  }
+}
