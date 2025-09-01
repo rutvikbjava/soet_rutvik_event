@@ -4,12 +4,6 @@ import { ConvexReactClient } from "convex/react";
 import "./index.css";
 import App from "./App";
 
-// Debug environment variables
-console.log("Environment variables:", {
-  VITE_CONVEX_URL: import.meta.env.VITE_CONVEX_URL,
-  NODE_ENV: import.meta.env.NODE_ENV,
-  MODE: import.meta.env.MODE
-});
 
 const convexUrl = import.meta.env.VITE_CONVEX_URL as string;
 

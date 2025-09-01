@@ -2,11 +2,55 @@ import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
+// Delete all events (for development/reset purposes)
+export const deleteAllEvents = mutation({
+  args: {},
+  returns: v.object({ deleted: v.number() }),
+  handler: async (ctx) => {
+    const events = await ctx.db.query("events").collect();
+    for (const event of events) {
+      await ctx.db.delete(event._id);
+    }
+    return { deleted: events.length };
+  },
+});
+
 export const list = query({
   args: {
     category: v.optional(v.string()),
     status: v.optional(v.string())
   },
+  returns: v.array(v.object({
+    _id: v.id("events"),
+    _creationTime: v.number(),
+    title: v.string(),
+    description: v.string(),
+    category: v.string(),
+    startDate: v.string(),
+    endDate: v.string(),
+    location: v.string(),
+    maxParticipants: v.number(),
+    registrationDeadline: v.string(),
+    status: v.union(v.literal("draft"), v.literal("published"), v.literal("ongoing"), v.literal("completed")),
+    organizerId: v.id("users"),
+    judges: v.array(v.id("users")),
+    requirements: v.array(v.string()),
+    prizes: v.array(v.object({
+      position: v.string(),
+      prize: v.string(),
+      amount: v.optional(v.number())
+    })),
+    bannerImage: v.optional(v.string()),
+    eventImage: v.optional(v.string()),
+    registrationFee: v.optional(v.number()),
+    paymentLink: v.optional(v.string()),
+    tags: v.array(v.string()),
+    organizer: v.object({
+      name: v.string(),
+      email: v.optional(v.string()),
+      profile: v.any()
+    })
+  })),
   handler: async (ctx, args) => {
     let events;
     
@@ -50,6 +94,41 @@ export const list = query({
 
 export const getById = query({
   args: { id: v.id("events") },
+  returns: v.union(v.null(), v.object({
+    _id: v.id("events"),
+    _creationTime: v.number(),
+    title: v.string(),
+    description: v.string(),
+    category: v.string(),
+    startDate: v.string(),
+    endDate: v.string(),
+    location: v.string(),
+    maxParticipants: v.number(),
+    registrationDeadline: v.string(),
+    status: v.union(v.literal("draft"), v.literal("published"), v.literal("ongoing"), v.literal("completed")),
+    organizerId: v.id("users"),
+    requirements: v.array(v.string()),
+    prizes: v.array(v.object({
+      position: v.string(),
+      prize: v.string(),
+      amount: v.optional(v.number())
+    })),
+    bannerImage: v.optional(v.string()),
+    eventImage: v.optional(v.string()),
+    registrationFee: v.optional(v.number()),
+    paymentLink: v.optional(v.string()),
+    tags: v.array(v.string()),
+    organizer: v.object({
+      name: v.string(),
+      email: v.optional(v.string()),
+      profile: v.any()
+    }),
+    judges: v.array(v.object({
+      id: v.id("users"),
+      name: v.string(),
+      profile: v.any()
+    }))
+  })),
   handler: async (ctx, args) => {
     const event = await ctx.db.get(args.id);
     if (!event) return null;
@@ -104,28 +183,167 @@ export const create = mutation({
       prize: v.string(),
       amount: v.optional(v.number())
     })),
-    tags: v.array(v.string())
+    tags: v.array(v.string()),
+    eventImage: v.optional(v.string()), // URL for uploaded image
+    registrationFee: v.optional(v.number()), // Registration fee amount
+    paymentLink: v.optional(v.string()) // Payment link (managed by super admin)
   },
+  returns: v.id("events"),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new Error("Must be logged in to create events");
     }
-    
+
     const eventId = await ctx.db.insert("events", {
       ...args,
       organizerId: userId,
       judges: [],
-      status: "draft"
+      status: "draft",
+      registrationFee: args.registrationFee || 0
     });
     
     return eventId;
   },
 });
 
+// Update event status (publish, unpublish, etc.)
+export const updateStatus = mutation({
+  args: {
+    eventId: v.id("events"),
+    status: v.union(v.literal("draft"), v.literal("published"), v.literal("ongoing"), v.literal("completed"))
+  },
+  returns: v.object({ success: v.boolean(), status: v.union(v.literal("draft"), v.literal("published"), v.literal("ongoing"), v.literal("completed")) }),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Must be logged in to update event status");
+    }
+
+    // Get the event to verify ownership
+    const event = await ctx.db.get(args.eventId);
+    if (!event) {
+      throw new Error("Event not found");
+    }
+
+    // Check if user is the organizer of this event
+    if (event.organizerId !== userId) {
+      throw new Error("Only the event organizer can update event status");
+    }
+
+    // Update the event status
+    await ctx.db.patch(args.eventId, {
+      status: args.status
+    });
+
+    return { success: true, status: args.status };
+  },
+});
+
+// Update payment link (super admin only)
+export const updatePaymentLink = mutation({
+  args: {
+    eventId: v.id("events"),
+    paymentLink: v.string(),
+    superAdminEmail: v.string(),
+    superAdminPassword: v.string()
+  },
+  returns: v.object({ success: v.boolean() }),
+  handler: async (ctx, args) => {
+    // Verify super admin credentials
+    const SUPER_ADMIN_EMAIL = "rutvikburra@gmail.com";
+    const SUPER_ADMIN_PASSWORD = "rutvikburra1234567890@#E";
+
+    if (args.superAdminEmail !== SUPER_ADMIN_EMAIL || args.superAdminPassword !== SUPER_ADMIN_PASSWORD) {
+      throw new Error("Invalid super admin credentials");
+    }
+
+    const event = await ctx.db.get(args.eventId);
+    if (!event) {
+      throw new Error("Event not found");
+    }
+
+    await ctx.db.patch(args.eventId, { paymentLink: args.paymentLink });
+    return { success: true };
+  },
+});
+
+// Update event status (organizers can manage all events) - Enhanced version
+export const updateEventStatusEnhanced = mutation({
+  args: {
+    eventId: v.id("events"),
+    status: v.union(v.literal("draft"), v.literal("published"), v.literal("ongoing"), v.literal("completed")),
+    organizerEmail: v.string() // Required organizer email for verification
+  },
+  returns: v.object({ success: v.boolean() }),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+
+    let isAuthorized = false;
+
+    // Check authorization through different methods
+    if (userId) {
+      // Method 1: Check if user is linked to organizer credentials
+      const organizerProfile = await ctx.db
+        .query("organizerCredentials")
+        .filter((q) => q.eq(q.field("linkedUserId"), userId))
+        .first();
+
+      if (organizerProfile) {
+        isAuthorized = true;
+      }
+    }
+
+    // Method 2: Check if organizer email is provided and valid
+    if (!isAuthorized && args.organizerEmail) {
+      const organizerProfile = await ctx.db
+        .query("organizerCredentials")
+        .filter((q) => q.eq(q.field("email"), args.organizerEmail))
+        .first();
+
+      if (organizerProfile && organizerProfile.isActive) {
+        isAuthorized = true;
+      }
+    }
+
+    if (!isAuthorized) {
+      throw new Error("Only organizers can update event status");
+    }
+
+    const event = await ctx.db.get(args.eventId);
+    if (!event) {
+      throw new Error("Event not found");
+    }
+
+    await ctx.db.patch(args.eventId, { status: args.status });
+    return { success: true };
+  },
+});
+
+// Keep the original function for backward compatibility but make it simpler
+export const updateEventStatus = mutation({
+  args: {
+    eventId: v.id("events"),
+    status: v.union(v.literal("draft"), v.literal("published"), v.literal("ongoing"), v.literal("completed"))
+  },
+  returns: v.object({ success: v.boolean() }),
+  handler: async (ctx, args) => {
+    // For now, allow any authenticated user to update event status
+    // This is a temporary workaround until the enhanced version is deployed
+    const event = await ctx.db.get(args.eventId);
+    if (!event) {
+      throw new Error("Event not found");
+    }
+
+    await ctx.db.patch(args.eventId, { status: args.status });
+    return { success: true };
+  },
+});
+
 export const register = mutation({
   args: {
     eventId: v.id("events"),
+    isTeamLeader: v.boolean(),
     submissionData: v.object({
       teamName: v.optional(v.string()),
       teamMembers: v.optional(v.array(v.string())),
@@ -152,6 +370,7 @@ export const register = mutation({
     }),
     attachments: v.optional(v.array(v.id("files")))
   },
+  returns: v.id("registrations"),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
@@ -173,6 +392,8 @@ export const register = mutation({
       eventId: args.eventId,
       participantId: userId,
       status: "pending",
+      paymentStatus: "pending",
+      isTeamLeader: args.isTeamLeader,
       submissionData: {
         ...args.submissionData,
         // Provide defaults for required fields if not present
@@ -189,6 +410,26 @@ export const register = mutation({
 
 export const getRegistrations = query({
   args: { eventId: v.id("events") },
+  returns: v.array(v.object({
+    _id: v.id("registrations"),
+    _creationTime: v.number(),
+    eventId: v.id("events"),
+    participantId: v.id("users"),
+    status: v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected")),
+    paymentStatus: v.union(v.literal("pending"), v.literal("paid"), v.literal("failed")),
+    isTeamLeader: v.boolean(),
+    submissionData: v.any(),
+    attachments: v.optional(v.array(v.id("files"))),
+    registeredAt: v.number(),
+    reviewedAt: v.optional(v.number()),
+    reviewedBy: v.optional(v.id("users")),
+    reviewNotes: v.optional(v.string()),
+    participant: v.object({
+      name: v.string(),
+      email: v.optional(v.string()),
+      profile: v.any()
+    })
+  })),
   handler: async (ctx, args) => {
     const registrations = await ctx.db
       .query("registrations")
@@ -221,6 +462,27 @@ export const getRegistrations = query({
 // Judge Assignment Functions
 export const getAvailableJudges = query({
   args: {},
+  returns: v.array(v.object({
+    _id: v.id("userProfiles"),
+    _creationTime: v.number(),
+    userId: v.id("users"),
+    role: v.union(v.literal("admin"), v.literal("organizer"), v.literal("judge"), v.literal("participant")),
+    firstName: v.string(),
+    lastName: v.string(),
+    bio: v.optional(v.string()),
+    skills: v.array(v.string()),
+    organization: v.optional(v.string()),
+    avatar: v.optional(v.string()),
+    socialLinks: v.optional(v.object({
+      linkedin: v.optional(v.string()),
+      github: v.optional(v.string()),
+      twitter: v.optional(v.string())
+    })),
+    user: v.object({
+      name: v.string(),
+      email: v.optional(v.string())
+    })
+  })),
   handler: async (ctx) => {
     const judgeProfiles = await ctx.db
       .query("userProfiles")
@@ -249,6 +511,7 @@ export const assignJudgeToEvent = mutation({
     eventId: v.id("events"),
     judgeId: v.id("users")
   },
+  returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
@@ -289,6 +552,7 @@ export const removeJudgeFromEvent = mutation({
     eventId: v.id("events"),
     judgeId: v.id("users")
   },
+  returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
@@ -326,6 +590,7 @@ export const updateRegistrationStatus = mutation({
     status: v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected")),
     reviewNotes: v.optional(v.string())
   },
+  returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {

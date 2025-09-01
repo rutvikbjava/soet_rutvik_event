@@ -1,7 +1,11 @@
 import { useState, useEffect } from "react";
 import { useMutation } from "convex/react";
+import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "../../convex/_generated/api";
 import { AdminDashboard } from "./AdminDashboard";
+import { OrganizerDashboard } from "./OrganizerDashboard";
+import { JudgeDashboard } from "./JudgeDashboard";
+import { SimpleVideoBackground } from "./SimpleVideoBackground";
 import { SignInForm } from "../SignInForm";
 
 interface UserInfo {
@@ -15,6 +19,7 @@ interface UserInfo {
 export function AuthWrapper() {
   const [currentUser, setCurrentUser] = useState<UserInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { signIn } = useAuthActions();
   const createDefaultAccounts = useMutation(api.superAdmin.createDefaultAccounts);
 
   // Initialize default accounts and check for stored user session
@@ -22,10 +27,9 @@ export function AuthWrapper() {
     const initializeApp = async () => {
       try {
         // Create default accounts if they don't exist
-        const result = await createDefaultAccounts();
-        console.log("Default accounts creation result:", result);
+        await createDefaultAccounts();
       } catch (error) {
-        console.log("Default accounts already exist or error creating them:", error);
+        // Default accounts already exist or error creating them
       }
 
       // Check for stored user session
@@ -34,6 +38,16 @@ export function AuthWrapper() {
         try {
           const userInfo = JSON.parse(storedUser);
           setCurrentUser(userInfo);
+
+          // Auto-authenticate with Convex for development
+          try {
+            // Use anonymous authentication for now since we handle authorization
+            // through organizer credentials in the backend
+            await signIn("anonymous");
+          } catch (authError) {
+            // Auto-authentication failed, user will need to sign in manually
+            // Don't throw error, just continue without auth
+          }
         } catch (error) {
           console.error("Error parsing stored user info:", error);
           localStorage.removeItem('currentUser');
@@ -54,23 +68,19 @@ export function AuthWrapper() {
     setCurrentUser(userInfo);
   };
 
-  const handleCreateDefaultAccounts = async () => {
-    try {
-      const result = await createDefaultAccounts();
-      console.log("Manual default accounts creation:", result);
-      alert("Default accounts created! Check console for details.");
-    } catch (error) {
-      console.error("Error creating default accounts:", error);
-      alert("Error creating accounts or they already exist.");
-    }
-  };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-accent-blue border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-silver/70">Loading your cosmic dashboard...</p>
+      <div className="min-h-screen relative overflow-hidden">
+        {/* Video Blackhole Background */}
+        <SimpleVideoBackground />
+
+        {/* Content Container */}
+        <div className="relative z-10 min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-accent-blue border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-silver/70">Loading your cosmic dashboard...</p>
+          </div>
         </div>
       </div>
     );
@@ -79,18 +89,14 @@ export function AuthWrapper() {
   // If no user is signed in, show sign-in form
   if (!currentUser) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="w-full max-w-md space-y-4">
-          <SignInForm onSuccess={handleSignInSuccess} />
+      <div className="min-h-screen relative overflow-hidden">
+        {/* Video Blackhole Background */}
+        <SimpleVideoBackground />
 
-          {/* Debug button to create default accounts */}
-          <div className="text-center">
-            <button
-              onClick={handleCreateDefaultAccounts}
-              className="px-4 py-2 bg-yellow-500/20 text-yellow-400 rounded-lg hover:bg-yellow-500/30 transition-colors text-sm"
-            >
-              🔧 Create Default Test Accounts
-            </button>
+        {/* Content Container */}
+        <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
+          <div className="w-full max-w-md space-y-4">
+            <SignInForm onSuccess={handleSignInSuccess} />
           </div>
         </div>
       </div>
@@ -133,9 +139,14 @@ export function AuthWrapper() {
   // Render appropriate dashboard based on role
   if (currentUser.role === "organizer") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-space-navy via-charcoal to-dark-blue">
-        {/* Header with sign out */}
-        <nav className="bg-space-navy/80 backdrop-blur-md border-b border-white/10">
+      <div className="min-h-screen relative overflow-hidden">
+        {/* Video Blackhole Background */}
+        <SimpleVideoBackground />
+
+        {/* Content Container */}
+        <div className="relative z-10">
+          {/* Header with sign out */}
+          <nav className="bg-space-navy/80 backdrop-blur-md border-b border-white/10">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
               <div className="flex items-center gap-3">
@@ -162,14 +173,20 @@ export function AuthWrapper() {
           </div>
         </nav>
 
-        <AdminDashboard profile={mockProfile} stats={mockStats} />
+          <OrganizerDashboard profile={mockProfile} stats={mockStats} />
+        </div>
       </div>
     );
   } else {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-space-navy via-charcoal to-dark-blue">
-        {/* Header with sign out */}
-        <nav className="bg-space-navy/80 backdrop-blur-md border-b border-white/10">
+      <div className="min-h-screen relative overflow-hidden">
+        {/* Video Blackhole Background */}
+        <SimpleVideoBackground />
+
+        {/* Content Container */}
+        <div className="relative z-10">
+          {/* Header with sign out */}
+          <nav className="bg-space-navy/80 backdrop-blur-md border-b border-white/10">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
               <div className="flex items-center gap-3">
@@ -196,7 +213,8 @@ export function AuthWrapper() {
           </div>
         </nav>
 
-        <AdminDashboard profile={mockProfile} stats={mockStats} />
+          <JudgeDashboard profile={mockProfile} stats={mockStats} />
+        </div>
       </div>
     );
   }

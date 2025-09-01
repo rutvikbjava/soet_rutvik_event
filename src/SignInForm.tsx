@@ -1,5 +1,6 @@
 "use client";
 import { useMutation } from "convex/react";
+import { useAuthActions } from "@convex-dev/auth/react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { api } from "../convex/_generated/api";
@@ -10,6 +11,7 @@ interface SignInFormProps {
 
 export function SignInForm({ onSuccess }: SignInFormProps = {}) {
   const [submitting, setSubmitting] = useState(false);
+  const { signIn } = useAuthActions();
   const authenticateOrganizerJudge = useMutation(api.superAdmin.authenticateOrganizerJudge);
 
   return (
@@ -47,25 +49,42 @@ export function SignInForm({ onSuccess }: SignInFormProps = {}) {
             });
 
             if (result.success) {
-              // Success - show success message
-              toast.success(`Welcome back, ${result.firstName}! 🚀`);
+              try {
+                // For super admin created users, we need to sign in with anonymous auth
+                // and then link to their user account
+                await signIn("anonymous");
 
-              // Call success callback with user info
-              if (onSuccess) {
-                onSuccess(result);
+                // Success - show success message
+                toast.success(`Welcome back, ${result.firstName}! 🚀`);
+
+                // Store user info in localStorage for UI state management
+                localStorage.setItem('currentUser', JSON.stringify({
+                  email,
+                  role: result.role,
+                  firstName: result.firstName,
+                  lastName: result.lastName,
+                  organization: result.organization,
+                  userId: result.userId
+                }));
+
+                // Call success callback with user info to trigger state update
+                if (onSuccess) {
+                  onSuccess({
+                    email,
+                    role: result.role,
+                    firstName: result.firstName,
+                    lastName: result.lastName,
+                    organization: result.organization,
+                    userId: result.userId
+                  });
+                }
+              } catch (authError) {
+                console.error("Convex Auth error:", authError);
+                toast.error("Authentication system error. Please try again.");
               }
-
-              // Store user info in localStorage for session management
-              localStorage.setItem('currentUser', JSON.stringify({
-                email,
-                role: result.role,
-                firstName: result.firstName,
-                lastName: result.lastName,
-                organization: result.organization
-              }));
-
-              // Redirect or update UI as needed
-              window.location.reload();
+            } else {
+              // Authentication failed
+              toast.error(result.message || "Authentication failed. Please check your credentials.");
             }
 
             // Reset form state

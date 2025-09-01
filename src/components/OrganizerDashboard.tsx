@@ -1,7 +1,15 @@
 import { useState } from "react";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
+import { toast } from "sonner";
 import { api } from "../../convex/_generated/api";
+import { Id as ConvexId } from "../../convex/_generated/dataModel";
 import { CreateEventModal } from "./CreateEventModal";
+import { ParticipantRegistrationManager } from "./ParticipantRegistrationManager";
+import { JudgeAssignmentModal } from "./JudgeAssignmentModal";
+import { EventAnalyticsModal } from "./EventAnalyticsModal";
+import { EventTemplatesModal } from "./EventTemplatesModal";
+import { AwardsManagementModal } from "./AwardsManagementModal";
+import { AllEventsManagerModal } from "./AllEventsManagerModal";
 
 interface OrganizerDashboardProps {
   profile: any;
@@ -10,69 +18,260 @@ interface OrganizerDashboardProps {
 
 export function OrganizerDashboard({ profile, stats }: OrganizerDashboardProps) {
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showParticipantManager, setShowParticipantManager] = useState(false);
+  const [showJudgeAssignment, setShowJudgeAssignment] = useState(false);
+  const [showEventAnalytics, setShowEventAnalytics] = useState(false);
+  const [showEventTemplates, setShowEventTemplates] = useState(false);
+  const [showAwardsManagement, setShowAwardsManagement] = useState(false);
+  const [showAllEventsManager, setShowAllEventsManager] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<{
+    id: ConvexId<"events">;
+    title: string;
+    judges: ConvexId<"users">[];
+  } | null>(null);
+
   const events = useQuery(api.events.list, {});
   const myEvents = events?.filter(event => event.organizerId === profile.userId) || [];
+  const updateEventStatusMutation = useMutation(api.events.updateEventStatus);
+
+  const handleStatusUpdate = async (eventId: ConvexId<"events">, status: "draft" | "published" | "ongoing" | "completed") => {
+    try {
+      // Get current user email from localStorage for authorization
+      const storedUser = localStorage.getItem('currentUser');
+      const userInfo = storedUser ? JSON.parse(storedUser) : null;
+
+      if (!userInfo?.email) {
+        toast.error("Please sign in to update event status");
+        return;
+      }
+
+      await updateEventStatusMutation({
+        eventId,
+        status
+      });
+      toast.success(`Event status updated to ${status}! ✨`);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update event status");
+    }
+  };
 
   return (
-    <div className="min-h-screen py-8 px-4">
+    <div className="min-h-screen py-4 sm:py-6 lg:py-8 px-4">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-4">
           <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-starlight-white to-supernova-gold bg-clip-text text-transparent mb-2">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-starlight-white to-supernova-gold bg-clip-text text-transparent mb-2">
               Event Command Center 🎯
             </h1>
-            <p className="text-starlight-white/70 text-lg">
+            <p className="text-starlight-white/70 text-sm sm:text-base lg:text-lg">
               Welcome back, {profile.firstName}! Ready to create stellar experiences?
             </p>
           </div>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="px-6 py-3 bg-gradient-to-r from-supernova-gold to-plasma-orange text-space-navy font-bold rounded-lg hover:scale-105 transform transition-all duration-300 shadow-lg hover:shadow-supernova-gold/25 flex items-center gap-2"
+            className="w-full sm:w-auto px-4 sm:px-6 py-3 bg-gradient-to-r from-supernova-gold to-plasma-orange text-space-navy font-bold rounded-lg hover:scale-105 transform transition-all duration-300 shadow-lg hover:shadow-supernova-gold/25 flex items-center justify-center gap-2 text-sm sm:text-base touch-manipulation"
           >
             <span>➕</span> Create Event
           </button>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6 mb-6 sm:mb-8">
           {[
-            { 
-              label: "My Events", 
-              value: stats.myEvents, 
-              icon: "🌟", 
-              color: "from-supernova-gold to-plasma-orange"
+            {
+              label: "My Events",
+              value: stats.myEvents,
+              icon: "🌟",
+              color: "from-supernova-gold to-plasma-orange",
+              clickable: false
             },
-            { 
-              label: "Active Events", 
-              value: stats.activeEvents, 
-              icon: "🚀", 
-              color: "from-stellar-blue to-cosmic-purple"
+            {
+              label: "Total Events",
+              value: events?.length || 0,
+              icon: "🎪",
+              color: "from-electric-blue to-neon-blue",
+              clickable: true,
+              onClick: () => setShowAllEventsManager(true)
             },
-            { 
-              label: "Total Registrations", 
-              value: stats.totalRegistrations, 
-              icon: "👥", 
-              color: "from-nebula-pink to-cosmic-purple"
+            {
+              label: "Active Events",
+              value: stats.activeEvents,
+              icon: "🚀",
+              color: "from-stellar-blue to-cosmic-purple",
+              clickable: false
             },
-            { 
-              label: "Draft Events", 
-              value: stats.draftEvents, 
-              icon: "📝", 
-              color: "from-plasma-orange to-supernova-gold"
+            {
+              label: "Total Registrations",
+              value: stats.totalRegistrations,
+              icon: "👥",
+              color: "from-nebula-pink to-cosmic-purple",
+              clickable: false
+            },
+            {
+              label: "Draft Events",
+              value: stats.draftEvents,
+              icon: "📝",
+              color: "from-plasma-orange to-supernova-gold",
+              clickable: false
             }
           ].map((stat, index) => (
-            <div key={index} className="relative group">
-              <div className="absolute inset-0 bg-gradient-to-r opacity-20 rounded-2xl blur group-hover:opacity-30 transition-opacity"></div>
-              <div className="relative bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:border-supernova-gold/50 transition-all duration-300">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="text-3xl">{stat.icon}</div>
+            <div
+              key={index}
+              className={`relative group ${stat.clickable ? 'cursor-pointer' : ''}`}
+              onClick={stat.clickable ? stat.onClick : undefined}
+            >
+              <div className="absolute inset-0 bg-gradient-to-r opacity-20 rounded-xl sm:rounded-2xl blur group-hover:opacity-30 transition-opacity"></div>
+              <div className={`relative bg-white/5 backdrop-blur-md border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-6 transition-all duration-300 ${
+                stat.clickable
+                  ? 'hover:border-electric-blue/50 hover:scale-105 hover:shadow-lg hover:shadow-electric-blue/20'
+                  : 'hover:border-supernova-gold/50'
+              }`}>
+                <div className="flex items-center justify-between mb-3 sm:mb-4">
+                  <div className="text-2xl sm:text-3xl">{stat.icon}</div>
+                  {stat.clickable && (
+                    <div className="text-electric-blue/60 group-hover:text-electric-blue transition-colors">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  )}
                 </div>
-                <div className="text-3xl font-bold text-starlight-white mb-1">{stat.value}</div>
-                <div className="text-starlight-white/70 text-sm">{stat.label}</div>
+                <div className="text-2xl sm:text-3xl font-bold text-starlight-white mb-1">{stat.value}</div>
+                <div className="text-starlight-white/70 text-xs sm:text-sm">{stat.label}</div>
+                {stat.clickable && (
+                  <div className="text-electric-blue/60 text-xs mt-2 group-hover:text-electric-blue transition-colors">
+                    Click to manage all events
+                  </div>
+                )}
               </div>
             </div>
           ))}
+        </div>
+
+        {/* Quick Actions Cards */}
+        <div className="mb-6 sm:mb-8">
+          <h3 className="text-lg sm:text-xl font-bold text-starlight-white mb-3 sm:mb-4 flex items-center gap-2">
+            <span>🚀</span> Quick Actions
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            <div
+              onClick={() => setShowCreateModal(true)}
+              className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:border-supernova-gold/50 transition-all duration-300 hover:scale-105 transform cursor-pointer"
+            >
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-supernova-gold to-plasma-orange rounded-xl flex items-center justify-center">
+                  <span className="text-xl">➕</span>
+                </div>
+                <div>
+                  <h4 className="text-lg font-bold text-starlight-white">Create Event</h4>
+                  <p className="text-starlight-white/70 text-sm">Launch a new stellar event</p>
+                </div>
+              </div>
+              <button className="w-full px-4 py-2 bg-gradient-to-r from-supernova-gold to-plasma-orange text-space-navy rounded-lg hover:opacity-90 transition-opacity text-sm font-bold">
+                Create New Event
+              </button>
+            </div>
+
+            <div
+              onClick={() => setShowEventAnalytics(true)}
+              className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:border-stellar-blue/50 transition-all duration-300 hover:scale-105 transform cursor-pointer"
+            >
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-stellar-blue to-cosmic-purple rounded-xl flex items-center justify-center">
+                  <span className="text-xl">📊</span>
+                </div>
+                <div>
+                  <h4 className="text-lg font-bold text-starlight-white">Event Analytics</h4>
+                  <p className="text-starlight-white/70 text-sm">View performance metrics</p>
+                </div>
+              </div>
+              <button className="w-full px-4 py-2 bg-stellar-blue hover:bg-stellar-blue/80 text-starlight-white rounded-lg transition-colors text-sm font-medium">
+                View Analytics
+              </button>
+            </div>
+
+            <div
+              onClick={() => setShowParticipantManager(true)}
+              className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:border-nebula-pink/50 transition-all duration-300 hover:scale-105 transform cursor-pointer"
+            >
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-nebula-pink to-cosmic-purple rounded-xl flex items-center justify-center">
+                  <span className="text-xl">👥</span>
+                </div>
+                <div>
+                  <h4 className="text-lg font-bold text-starlight-white">Manage Participants</h4>
+                  <p className="text-starlight-white/70 text-sm">View registrations & teams</p>
+                </div>
+              </div>
+              <button className="w-full px-4 py-2 bg-nebula-pink hover:bg-nebula-pink/80 text-starlight-white rounded-lg transition-colors text-sm font-medium">
+                Manage Participants
+              </button>
+            </div>
+
+            <div
+              onClick={() => {
+                if (myEvents.length > 0) {
+                  setSelectedEvent({
+                    id: myEvents[0]._id,
+                    title: myEvents[0].title,
+                    judges: myEvents[0].judges || []
+                  });
+                  setShowJudgeAssignment(true);
+                }
+              }}
+              className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:border-electric-blue/50 transition-all duration-300 hover:scale-105 transform cursor-pointer"
+            >
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-electric-blue to-neon-blue rounded-xl flex items-center justify-center">
+                  <span className="text-xl">⚖️</span>
+                </div>
+                <div>
+                  <h4 className="text-lg font-bold text-starlight-white">Assign Judges</h4>
+                  <p className="text-starlight-white/70 text-sm">Manage event judging</p>
+                </div>
+              </div>
+              <button className="w-full px-4 py-2 bg-electric-blue hover:bg-electric-blue/80 text-starlight-white rounded-lg transition-colors text-sm font-medium">
+                Assign Judges
+              </button>
+            </div>
+
+            <div
+              onClick={() => setShowEventTemplates(true)}
+              className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:border-plasma-orange/50 transition-all duration-300 hover:scale-105 transform cursor-pointer"
+            >
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-plasma-orange to-supernova-gold rounded-xl flex items-center justify-center">
+                  <span className="text-xl">📋</span>
+                </div>
+                <div>
+                  <h4 className="text-lg font-bold text-starlight-white">Event Templates</h4>
+                  <p className="text-starlight-white/70 text-sm">Use pre-built templates</p>
+                </div>
+              </div>
+              <button className="w-full px-4 py-2 bg-plasma-orange hover:bg-plasma-orange/80 text-space-navy rounded-lg transition-colors text-sm font-medium">
+                Browse Templates
+              </button>
+            </div>
+
+            <div
+              onClick={() => setShowAwardsManagement(true)}
+              className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:border-accent-blue/50 transition-all duration-300 hover:scale-105 transform cursor-pointer"
+            >
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-accent-blue to-electric-blue rounded-xl flex items-center justify-center">
+                  <span className="text-xl">🏆</span>
+                </div>
+                <div>
+                  <h4 className="text-lg font-bold text-starlight-white">Awards & Prizes</h4>
+                  <p className="text-starlight-white/70 text-sm">Manage event rewards</p>
+                </div>
+              </div>
+              <button className="w-full px-4 py-2 bg-accent-blue hover:bg-accent-blue/80 text-starlight-white rounded-lg transition-colors text-sm font-medium">
+                Manage Awards
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* My Events */}
@@ -119,11 +318,23 @@ export function OrganizerDashboard({ profile, stats }: OrganizerDashboardProps) 
                   </div>
                   
                   <div className="flex gap-2">
+                    {event.status === 'draft' ? (
+                      <button
+                        onClick={() => void handleStatusUpdate(event._id, 'published')}
+                        className="flex-1 px-3 py-2 bg-supernova-gold hover:bg-supernova-gold/80 text-space-navy rounded text-sm transition-colors font-bold"
+                      >
+                        🚀 Publish
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => void handleStatusUpdate(event._id, 'draft')}
+                        className="flex-1 px-3 py-2 bg-medium-blue hover:bg-medium-blue/80 text-starlight-white rounded text-sm transition-colors"
+                      >
+                        📝 Unpublish
+                      </button>
+                    )}
                     <button className="flex-1 px-3 py-2 bg-stellar-blue hover:bg-stellar-blue/80 text-starlight-white rounded text-sm transition-colors">
                       Manage
-                    </button>
-                    <button className="flex-1 px-3 py-2 bg-cosmic-purple hover:bg-cosmic-purple/80 text-starlight-white rounded text-sm transition-colors">
-                      View
                     </button>
                   </div>
                 </div>
@@ -147,8 +358,62 @@ export function OrganizerDashboard({ profile, stats }: OrganizerDashboardProps) 
         </div>
       </div>
 
+      {/* Modals */}
       {showCreateModal && (
         <CreateEventModal onClose={() => setShowCreateModal(false)} />
+      )}
+
+      {showParticipantManager && (
+        <ParticipantRegistrationManager
+          onClose={() => setShowParticipantManager(false)}
+        />
+      )}
+
+      {showJudgeAssignment && selectedEvent && (
+        <JudgeAssignmentModal
+          eventId={selectedEvent.id}
+          eventTitle={selectedEvent.title}
+          currentJudges={selectedEvent.judges}
+          onClose={() => {
+            setShowJudgeAssignment(false);
+            setSelectedEvent(null);
+          }}
+          onUpdate={() => {
+            // Refresh events data - useQuery will automatically refetch
+          }}
+        />
+      )}
+
+      {showEventAnalytics && (
+        <EventAnalyticsModal
+          onClose={() => setShowEventAnalytics(false)}
+          organizerId={profile.userId}
+        />
+      )}
+
+      {showEventTemplates && (
+        <EventTemplatesModal
+          onClose={() => setShowEventTemplates(false)}
+          onSelectTemplate={(template) => {
+            // Handle template selection - could open create event modal with pre-filled data
+            console.log("Selected template:", template);
+          }}
+        />
+      )}
+
+      {showAwardsManagement && (
+        <AwardsManagementModal
+          onClose={() => setShowAwardsManagement(false)}
+          organizerId={profile.userId}
+        />
+      )}
+
+      {showAllEventsManager && (
+        <AllEventsManagerModal
+          events={events || []}
+          onClose={() => setShowAllEventsManager(false)}
+          onStatusUpdate={(eventId, status) => void handleStatusUpdate(eventId, status)}
+        />
       )}
     </div>
   );

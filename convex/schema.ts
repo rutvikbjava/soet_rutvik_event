@@ -22,6 +22,9 @@ const applicationTables = {
       amount: v.optional(v.number())
     })),
     bannerImage: v.optional(v.string()),
+    eventImage: v.optional(v.string()), // New field for event image
+    registrationFee: v.optional(v.number()), // New field for registration fee
+    paymentLink: v.optional(v.string()), // New field for payment link
     tags: v.array(v.string())
   })
     .index("by_organizer", ["organizerId"])
@@ -32,6 +35,8 @@ const applicationTables = {
     eventId: v.id("events"),
     participantId: v.id("users"),
     status: v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected")),
+    paymentStatus: v.union(v.literal("pending"), v.literal("paid"), v.literal("failed")),
+    isTeamLeader: v.boolean(),
     submissionData: v.object({
       teamName: v.optional(v.string()),
       teamMembers: v.optional(v.array(v.string())),
@@ -171,12 +176,14 @@ const applicationTables = {
     createdAt: v.number(),
     createdBy: v.string(), // Super admin email
     lastLogin: v.optional(v.number()),
-    passwordResetRequired: v.boolean()
+    passwordResetRequired: v.boolean(),
+    linkedUserId: v.optional(v.id("users")) // Link to Convex Auth user
   })
     .index("by_email", ["email"])
     .index("by_role", ["role"])
     .index("by_active", ["isActive"])
-    .index("by_created_by", ["createdBy"]),
+    .index("by_created_by", ["createdBy"])
+    .index("by_linked_user", ["linkedUserId"]),
 
   preQualifierTests: defineTable({
     title: v.string(),

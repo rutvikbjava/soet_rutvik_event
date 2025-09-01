@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
 import { toast } from "sonner";
+import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 
 interface CreateEventModalProps {
@@ -20,14 +20,96 @@ export function CreateEventModal({ onClose }: CreateEventModalProps) {
     registrationDeadline: "",
     requirements: [""],
     prizes: [{ position: "1st Place", prize: "", amount: 0 }],
-    tags: [] as string[]
+    tags: [] as string[],
+    eventImage: "",
+    registrationFee: 0
   });
   const [tagInput, setTagInput] = useState("");
   const [selectedJudges, setSelectedJudges] = useState<Set<Id<"users">>>(new Set());
   const [showJudgeSelection, setShowJudgeSelection] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
 
   const createEvent = useMutation(api.events.create);
   const assignJudge = useMutation(api.events.assignJudgeToEvent);
+
+  const compressImage = (file: File, maxSizeKB: number = 800): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+
+      img.onload = () => {
+        // Calculate new dimensions to keep aspect ratio
+        const maxWidth = 1200;
+        const maxHeight = 800;
+        let { width, height } = img;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = (width * maxHeight) / height;
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        // Draw and compress
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        // Start with high quality and reduce if needed
+        let quality = 0.8;
+        let compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+
+        // Reduce quality until under size limit
+        while (compressedDataUrl.length > maxSizeKB * 1024 * 1.37 && quality > 0.1) { // 1.37 accounts for base64 overhead
+          quality -= 0.1;
+          compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+        }
+
+        resolve(compressedDataUrl);
+      };
+
+      img.onerror = reject;
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Check file size (limit to 5MB before compression)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Image file is too large. Please select an image under 5MB.");
+        return;
+      }
+
+      // Check file type
+      if (!file.type.startsWith('image/')) {
+        toast.error("Please select a valid image file.");
+        return;
+      }
+
+      setImageFile(file);
+
+      try {
+        // Compress image to under 800KB
+        const compressedImage = await compressImage(file, 800);
+        setImagePreview(compressedImage);
+        setFormData(prev => ({ ...prev, eventImage: compressedImage }));
+        toast.success("Image uploaded and compressed successfully!");
+      } catch (error) {
+        console.error("Error compressing image:", error);
+        toast.error("Failed to process image. Please try a different image.");
+      }
+    }
+  };
   const availableJudges = useQuery(api.events.getAvailableJudges);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -228,6 +310,21 @@ export function CreateEventModal({ onClose }: CreateEventModalProps) {
               />
             </div>
             <div>
+              <label className="block text-starlight-white font-medium mb-2">Registration Fee (₹) *</label>
+              <input
+                type="number"
+                required
+                min="0"
+                value={formData.registrationFee}
+                onChange={(e) => setFormData(prev => ({ ...prev, registrationFee: parseInt(e.target.value) || 0 }))}
+                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-starlight-white placeholder-starlight-white/50 focus:border-supernova-gold focus:ring-1 focus:ring-supernova-gold outline-none transition-all"
+                placeholder="0"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
               <label className="block text-starlight-white font-medium mb-2">Max Participants *</label>
               <input
                 type="number"
@@ -237,6 +334,42 @@ export function CreateEventModal({ onClose }: CreateEventModalProps) {
                 onChange={(e) => setFormData(prev => ({ ...prev, maxParticipants: parseInt(e.target.value) }))}
                 className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-starlight-white focus:border-supernova-gold focus:ring-1 focus:ring-supernova-gold outline-none transition-all"
               />
+            </div>
+            <div>
+              <label className="block text-starlight-white font-medium mb-2">
+                Event Image
+                <span className="text-starlight-white/60 text-sm font-normal ml-2">
+                  (Max 5MB, will be compressed to under 800KB)
+                </span>
+              </label>
+              <div className="space-y-3">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-starlight-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-supernova-gold file:text-space-navy file:font-medium hover:file:bg-supernova-gold/80 focus:border-supernova-gold focus:ring-1 focus:ring-supernova-gold outline-none transition-all"
+                />
+                {imagePreview && (
+                  <div className="relative">
+                    <img
+                      src={imagePreview}
+                      alt="Event preview"
+                      className="w-full h-32 object-cover rounded-lg border border-white/20"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setImagePreview("");
+                        setImageFile(null);
+                        setFormData(prev => ({ ...prev, eventImage: "" }));
+                      }}
+                      className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm transition-colors"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

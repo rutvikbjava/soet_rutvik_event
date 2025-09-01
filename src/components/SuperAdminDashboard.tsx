@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
 import { toast } from "sonner";
+import { api } from "../../convex/_generated/api";
 import { ParticipantRegistrationManager } from "./ParticipantRegistrationManager";
 import { PreQualifierTestManager } from "./PreQualifierTestManager";
 import { Id } from "../../convex/_generated/dataModel";
@@ -18,6 +18,8 @@ export function SuperAdminDashboard({ onSignOut }: SuperAdminDashboardProps) {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState<string>("all");
+  const [showEventManagement, setShowEventManagement] = useState(false);
+  const [editingPaymentLink, setEditingPaymentLink] = useState<{eventId: Id<"events">, currentLink: string} | null>(null);
 
   // Super admin credentials (these would be securely stored in production)
   const SUPER_ADMIN_EMAIL = "rutvikburra@gmail.com";
@@ -27,6 +29,10 @@ export function SuperAdminDashboard({ onSignOut }: SuperAdminDashboardProps) {
     superAdminEmail: SUPER_ADMIN_EMAIL,
     superAdminPassword: SUPER_ADMIN_PASSWORD
   });
+
+  const deleteAllEvents = useMutation(api.superAdmin.deleteAllEvents);
+  const events = useQuery(api.events.list, {});
+  const updatePaymentLink = useMutation(api.events.updatePaymentLink);
 
   const stats = useQuery(api.superAdmin.getOrganizerJudgeStats, {
     superAdminEmail: SUPER_ADMIN_EMAIL,
@@ -112,6 +118,21 @@ export function SuperAdminDashboard({ onSignOut }: SuperAdminDashboardProps) {
     }
   };
 
+  const handleUpdatePaymentLink = async (eventId: Id<"events">, paymentLink: string) => {
+    try {
+      await updatePaymentLink({
+        eventId,
+        paymentLink,
+        superAdminEmail: SUPER_ADMIN_EMAIL,
+        superAdminPassword: SUPER_ADMIN_PASSWORD
+      });
+      toast.success("Payment link updated successfully! 💳");
+      setEditingPaymentLink(null);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update payment link");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-space-navy via-charcoal to-dark-blue">
       {/* Header */}
@@ -171,7 +192,7 @@ export function SuperAdminDashboard({ onSignOut }: SuperAdminDashboardProps) {
         </div>
 
         {/* Action Buttons */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           <button
             onClick={() => setShowParticipantData(true)}
             className="p-6 bg-gradient-to-r from-supernova-gold to-plasma-orange text-space-navy font-bold rounded-xl hover:scale-105 transform transition-all duration-300 shadow-lg"
@@ -198,7 +219,34 @@ export function SuperAdminDashboard({ onSignOut }: SuperAdminDashboardProps) {
             <div>Create Organizer/Judge</div>
             <div className="text-sm opacity-80">Add new accounts</div>
           </button>
-          
+
+          <button
+            onClick={() => setShowEventManagement(true)}
+            className="p-6 bg-gradient-to-r from-stellar-blue to-medium-blue text-silver font-bold rounded-xl hover:scale-105 transform transition-all duration-300 shadow-lg"
+          >
+            <div className="text-2xl mb-2">🎪</div>
+            <div>Manage Events</div>
+            <div className="text-sm opacity-80">Update payment links</div>
+          </button>
+
+          <button
+            onClick={async () => {
+              if (window.confirm('Are you sure you want to delete ALL events? This cannot be undone!')) {
+                try {
+                  const result = await deleteAllEvents();
+                  toast.success(`Deleted ${result.deletedEvents} events and ${result.deletedRegistrations} registrations`);
+                } catch (error) {
+                  toast.error('Failed to delete events');
+                }
+              }
+            }}
+            className="p-6 bg-gradient-to-r from-red-500 to-red-600 text-white font-bold rounded-xl hover:scale-105 transform transition-all duration-300 shadow-lg"
+          >
+            <div className="text-2xl mb-2">🗑️</div>
+            <div>Delete All Events</div>
+            <div className="text-sm opacity-80">Reset event data</div>
+          </button>
+
           <button
             onClick={() => window.scrollTo({ top: document.getElementById('user-management')?.offsetTop, behavior: 'smooth' })}
             className="p-6 bg-gradient-to-r from-cosmic-purple to-nebula-pink text-silver font-bold rounded-xl hover:scale-105 transform transition-all duration-300 shadow-lg"
@@ -389,6 +437,16 @@ export function SuperAdminDashboard({ onSignOut }: SuperAdminDashboardProps) {
           onSubmit={handlePasswordReset}
         />
       )}
+
+      {showEventManagement && (
+        <EventManagementModal
+          events={events || []}
+          onClose={() => setShowEventManagement(false)}
+          onUpdatePaymentLink={handleUpdatePaymentLink}
+          editingPaymentLink={editingPaymentLink}
+          setEditingPaymentLink={setEditingPaymentLink}
+        />
+      )}
     </div>
   );
 }
@@ -533,6 +591,137 @@ function PasswordResetModal({ user, onClose, onSubmit }: { user: any; onClose: (
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+// Event Management Modal Component
+function EventManagementModal({
+  events,
+  onClose,
+  onUpdatePaymentLink,
+  editingPaymentLink,
+  setEditingPaymentLink
+}: {
+  events: any[];
+  onClose: () => void;
+  onUpdatePaymentLink: (eventId: Id<"events">, paymentLink: string) => void;
+  editingPaymentLink: {eventId: Id<"events">, currentLink: string} | null;
+  setEditingPaymentLink: (value: {eventId: Id<"events">, currentLink: string} | null) => void;
+}) {
+  const [paymentLinkInput, setPaymentLinkInput] = useState("");
+
+  const handleSubmitPaymentLink = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingPaymentLink && paymentLinkInput.trim()) {
+      onUpdatePaymentLink(editingPaymentLink.eventId, paymentLinkInput.trim());
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-space-navy/95 backdrop-blur-md border border-medium-blue/30 rounded-2xl p-6 w-full max-w-4xl max-h-[80vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-starlight-white">Event Management</h2>
+          <button
+            onClick={onClose}
+            className="text-starlight-white/60 hover:text-starlight-white text-2xl"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {events.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="text-6xl mb-4">🎪</div>
+              <h3 className="text-xl font-bold text-starlight-white mb-2">No Events Found</h3>
+              <p className="text-starlight-white/70">No events have been created yet.</p>
+            </div>
+          ) : (
+            events.map((event) => (
+              <div key={event._id} className="p-4 bg-dark-blue/40 border border-medium-blue/30 rounded-xl">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <h3 className="text-lg font-bold text-starlight-white">{event.title}</h3>
+                    <p className="text-starlight-white/70 text-sm">{event.description}</p>
+                    <div className="flex items-center gap-4 mt-2 text-sm text-starlight-white/60">
+                      <span>Status: <span className={`font-medium ${
+                        event.status === 'published' ? 'text-supernova-gold' :
+                        event.status === 'ongoing' ? 'text-stellar-blue' :
+                        event.status === 'completed' ? 'text-nebula-pink' :
+                        'text-starlight-white/70'
+                      }`}>{event.status}</span></span>
+                      <span>Fee: ₹{event.registrationFee || 0}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <label className="block text-starlight-white/70 text-sm mb-1">Payment Link:</label>
+                    <div className="text-starlight-white/60 text-sm bg-dark-blue/20 p-2 rounded border">
+                      {event.paymentLink || "No payment link set"}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setEditingPaymentLink({
+                        eventId: event._id,
+                        currentLink: event.paymentLink || ""
+                      });
+                      setPaymentLinkInput(event.paymentLink || "");
+                    }}
+                    className="px-4 py-2 bg-supernova-gold hover:bg-supernova-gold/80 text-space-navy rounded font-medium transition-colors"
+                  >
+                    Update Link
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Payment Link Edit Modal */}
+        {editingPaymentLink && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-60">
+            <div className="bg-space-navy/95 backdrop-blur-md border border-medium-blue/30 rounded-xl p-6 w-full max-w-md">
+              <h3 className="text-lg font-bold text-starlight-white mb-4">Update Payment Link</h3>
+              <form onSubmit={handleSubmitPaymentLink}>
+                <div className="mb-4">
+                  <label className="block text-starlight-white/70 text-sm mb-2">Payment Gateway URL:</label>
+                  <input
+                    type="url"
+                    value={paymentLinkInput}
+                    onChange={(e) => setPaymentLinkInput(e.target.value)}
+                    placeholder="https://payment-gateway.com/event-payment"
+                    className="w-full px-3 py-2 bg-dark-blue/40 border border-medium-blue/30 rounded text-starlight-white placeholder-starlight-white/40 focus:border-supernova-gold focus:ring-1 focus:ring-supernova-gold outline-none"
+                    required
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingPaymentLink(null);
+                      setPaymentLinkInput("");
+                    }}
+                    className="flex-1 px-4 py-2 bg-medium-blue hover:bg-medium-blue/80 text-starlight-white rounded transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-4 py-2 bg-supernova-gold hover:bg-supernova-gold/80 text-space-navy rounded font-medium transition-colors"
+                  >
+                    Update
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

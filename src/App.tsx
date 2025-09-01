@@ -4,6 +4,7 @@ import { AuthWrapper } from "./components/AuthWrapper";
 import { ParticipantLandingPage } from "./components/ParticipantLandingPage";
 import { SuperAdminLogin } from "./components/SuperAdminLogin";
 import { SuperAdminDashboard } from "./components/SuperAdminDashboard";
+import { SimpleVideoBackground } from "./components/SimpleVideoBackground";
 
 // Watermark Component
 const Watermark = () => (
@@ -23,15 +24,14 @@ export default function App() {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('admin') === 'super') {
-      console.log("Super admin URL parameter detected");
       setShowSuperAdminLogin(true);
     }
+    
 
     // Secret keyboard shortcut: Ctrl+Shift+Alt+S
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.shiftKey && e.altKey && e.key === 'S') {
         e.preventDefault();
-        console.log("Super admin keyboard shortcut activated");
         setShowSuperAdminLogin(true);
       }
     };
@@ -50,28 +50,22 @@ export default function App() {
     setViewMode("participant");
   };
 
-  // If super admin is authenticated, show super admin dashboard
+  // If super admin is authenticated, show super admin dashboard (NO video background)
   if (isSuperAdmin) {
     return (
-      <main className="container max-w-2xl flex flex-col gap-8">
-        <SuperAdminDashboard onSignOut={handleSuperAdminSignOut} />
-        <Toaster position="bottom-right" />
-      </main>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <main className="container max-w-2xl flex flex-col gap-8 relative z-10 pt-8 px-4">
+          <SuperAdminDashboard onSignOut={handleSuperAdminSignOut} />
+          <Toaster position="bottom-right" />
+        </main>
+        <Watermark />
+      </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-deep-blue via-dark-blue to-medium-blue relative overflow-hidden">
-      {/* Animated background particles */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.1%22%3E%3Ccircle%20cx%3D%227%22%20cy%3D%227%22%20r%3D%221%22/%3E%3Ccircle%20cx%3D%2227%22%20cy%3D%2227%22%20r%3D%221%22/%3E%3Ccircle%20cx%3D%2247%22%20cy%3D%2247%22%20r%3D%221%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] animate-pulse"></div>
-        <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-accent-blue rounded-full animate-ping"></div>
-        <div className="absolute top-3/4 right-1/3 w-1 h-1 bg-electric-blue rounded-full animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 right-1/4 w-1.5 h-1.5 bg-neon-blue rounded-full animate-ping delay-500"></div>
-      </div>
-
-
-
+    <div className="min-h-screen relative overflow-hidden">
+      <SimpleVideoBackground />
       <main className="relative z-10">
         {viewMode === "participant" ? (
           <ParticipantLandingPage onSwitchToOrganizer={() => setViewMode("organizer")} />
