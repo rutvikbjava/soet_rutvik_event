@@ -23,5 +23,12 @@ dist-ssr
 *.sln
 *.sw?
 
+# Vercel
+.vercel
+
+# Environment files
+.env.local
+.env.production
+
 # Ignored for the template, you probably want to remove it:
 package-lock.json

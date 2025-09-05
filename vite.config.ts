@@ -56,7 +56,6 @@ window.addEventListener('message', async (message) => {
         manualChunks: undefined,
       },
     },
-    // Copy _redirects file to dist for Render deployment
     copyPublicDir: true,
   },
 }));

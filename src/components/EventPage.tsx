@@ -226,7 +226,7 @@ export function EventPage() {
                             <span>💰</span>
                             <span>Registration Fee</span>
                           </div>
-                          <p className="text-starlight-white">${event.registrationFee}</p>
+                          <p className="text-starlight-white">Rupees {event.registrationFee}</p>
                         </div>
                       )}
                     </div>
