@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { toast } from "sonner";
 import * as XLSX from 'xlsx';
+import { Id } from "../../convex/_generated/dataModel";
 
 interface ParticipantRegistrationManagerProps {
   onClose: () => void;
@@ -12,10 +13,12 @@ export function ParticipantRegistrationManager({ onClose }: ParticipantRegistrat
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCollege, setSelectedCollege] = useState("all");
   const [selectedTeamSize, setSelectedTeamSize] = useState<number | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<string>("all");
 
   const allRegistrations = useQuery(api.participantRegistrations.getAllParticipantRegistrations);
   const registrationStats = useQuery(api.participantRegistrations.getRegistrationStats);
   const deleteRegistration = useMutation(api.participantRegistrations.deleteParticipantRegistration);
+  const events = useQuery(api.events.list, {});
 
   // Filter registrations
   const filteredRegistrations = allRegistrations?.filter(registration => {
@@ -31,62 +34,129 @@ export function ParticipantRegistrationManager({ onClose }: ParticipantRegistrat
 
     const matchesTeamSize = selectedTeamSize === null || registration.teamSize === selectedTeamSize;
 
-    return matchesSearch && matchesCollege && matchesTeamSize;
+    const matchesEvent = selectedEvent === "all" || registration.eventId === selectedEvent;
+
+    return matchesSearch && matchesCollege && matchesTeamSize && matchesEvent;
   }) || [];
 
-  const exportToExcel = () => {
-    if (!filteredRegistrations || filteredRegistrations.length === 0) {
+  const exportToExcel = (specificEventId?: Id<"events">) => {
+    let dataToExport = filteredRegistrations;
+    
+    // If exporting for specific event, filter by that event
+    if (specificEventId) {
+      dataToExport = allRegistrations?.filter(reg => reg.eventId === specificEventId) || [];
+    }
+    
+    if (!dataToExport || dataToExport.length === 0) {
       toast.error("No registrations to export");
       return;
     }
 
-    // Prepare data for Excel
-    const excelData = filteredRegistrations.map((reg, index) => ({
-      'S.No': index + 1,
-      'Full Name': reg.fullName,
-      'College/University': reg.collegeUniversity,
-      'Department & Year': reg.departmentYear,
-      'Contact Number': reg.contactNumber,
-      'Email ID': reg.emailId,
-      'Team Name': reg.teamName || 'N/A',
-      'Team Size': reg.teamSize,
-      'Role in Team': reg.roleInTeam,
-      'Technical Skills': reg.technicalSkills,
-      'Previous Experience': reg.previousExperience || 'N/A',
-      'Agreed to Rules': reg.agreeToRules ? 'Yes' : 'No',
-      'Registration Date': new Date(reg.registeredAt).toLocaleDateString(),
-      'Registration Time': new Date(reg.registeredAt).toLocaleTimeString()
-    }));
+    // Find event details for naming
+    const eventForExport = specificEventId ? events?.find(e => e._id === specificEventId) : null;
+    const eventTitle = eventForExport ? eventForExport.title.replace(/[^a-zA-Z0-9]/g, '_') : 'All_Events';
+
+    // Prepare data for Excel with comprehensive event-specific information
+    const excelData = dataToExport.map((reg, index) => {
+      const eventSpecific = reg.eventSpecificData || {};
+      const teamMembers = eventSpecific.teamMembers || [];
+      
+      // Base data
+      const baseData = {
+        'S.No': index + 1,
+        'Event Title': eventSpecific.eventTitle || 'N/A',
+        'Event Category': eventSpecific.eventCategory || 'N/A',
+        'Full Name': reg.fullName,
+        'Gender': eventSpecific.gender || 'N/A',
+        'Contact Number': reg.contactNumber,
+        'Email ID': reg.emailId,
+        'College/University': reg.collegeUniversity,
+        'Program/Branch': eventSpecific.programBranch || 'N/A',
+        'Current Year': eventSpecific.currentYear || 'N/A',
+        'City': eventSpecific.city || 'N/A',
+        'Department & Year': reg.departmentYear,
+        'Is Team Registration': eventSpecific.isTeam ? 'Yes' : 'No',
+        'Team Name': reg.teamName || 'N/A',
+        'Team Size': reg.teamSize,
+        'Role in Team': reg.roleInTeam,
+        'Technical Skills': reg.technicalSkills,
+        'Previous Experience': reg.previousExperience || 'N/A',
+        'Agreed to Rules': reg.agreeToRules ? 'Yes' : 'No',
+        'Registration Date': new Date(reg.registeredAt).toLocaleDateString(),
+        'Registration Time': new Date(reg.registeredAt).toLocaleTimeString()
+      };
+      
+      // Add event-specific fields
+      const eventSpecificFields: any = {};
+      
+      // Project-related fields (Protonova, etc.)
+      if (eventSpecific.projectTitle) eventSpecificFields['Project Title'] = eventSpecific.projectTitle;
+      if (eventSpecific.projectAbstract) eventSpecificFields['Project Abstract'] = eventSpecific.projectAbstract;
+      if (eventSpecific.projectDomain) eventSpecificFields['Project Domain'] = eventSpecific.projectDomain;
+      if (eventSpecific.projectType) eventSpecificFields['Project Type'] = eventSpecific.projectType;
+      if (eventSpecific.projectIdea) eventSpecificFields['Project Idea'] = eventSpecific.projectIdea;
+      
+      // Startup-related fields (SparkX)
+      if (eventSpecific.startupName) eventSpecificFields['Startup Name'] = eventSpecific.startupName;
+      if (eventSpecific.startupIdea) eventSpecificFields['Startup Idea'] = eventSpecific.startupIdea;
+      
+      // Gaming-related fields (Battleclipse)
+      if (eventSpecific.selectedGame) eventSpecificFields['Selected Game'] = eventSpecific.selectedGame;
+      if (eventSpecific.gameUsernames) eventSpecificFields['Game Usernames'] = eventSpecific.gameUsernames;
+      
+      // Robotics-related fields (CosmoBolt)
+      if (eventSpecific.robotName) eventSpecificFields['Robot Name'] = eventSpecific.robotName;
+      if (eventSpecific.botDimensions) eventSpecificFields['Bot Dimensions'] = eventSpecific.botDimensions;
+      
+      // Workshop-related fields
+      if (eventSpecific.laptopAvailable !== undefined) {
+        eventSpecificFields['Laptop Available'] = eventSpecific.laptopAvailable ? 'Yes' : 'No';
+      }
+      
+      // Special requirements
+      if (eventSpecific.needsSpecialSetup !== undefined) {
+        eventSpecificFields['Needs Special Setup'] = eventSpecific.needsSpecialSetup ? 'Yes' : 'No';
+      }
+      if (eventSpecific.additionalSpaceRequirements) {
+        eventSpecificFields['Additional Space Requirements'] = eventSpecific.additionalSpaceRequirements;
+      }
+      
+      // Team member details
+      teamMembers.forEach((member, idx) => {
+        eventSpecificFields[`Team Member ${idx + 1} Name`] = member.name || 'N/A';
+        eventSpecificFields[`Team Member ${idx + 1} Gender`] = member.gender || 'N/A';
+        eventSpecificFields[`Team Member ${idx + 1} Contact`] = member.contactNumber || 'N/A';
+        eventSpecificFields[`Team Member ${idx + 1} Email`] = member.emailId || 'N/A';
+        eventSpecificFields[`Team Member ${idx + 1} College`] = member.college || 'N/A';
+        eventSpecificFields[`Team Member ${idx + 1} City`] = member.city || 'N/A';
+        eventSpecificFields[`Team Member ${idx + 1} Program`] = member.programBranch || 'N/A';
+        eventSpecificFields[`Team Member ${idx + 1} Year`] = member.currentYear || 'N/A';
+      });
+      
+      return { ...baseData, ...eventSpecificFields };
+    });
 
     // Create workbook and worksheet
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(excelData);
 
-    // Set column widths
-    const colWidths = [
-      { wch: 8 },   // S.No
-      { wch: 20 },  // Full Name
-      { wch: 25 },  // College/University
-      { wch: 20 },  // Department & Year
-      { wch: 15 },  // Contact Number
-      { wch: 25 },  // Email ID
-      { wch: 15 },  // Team Name
-      { wch: 10 },  // Team Size
-      { wch: 12 },  // Role in Team
-      { wch: 30 },  // Technical Skills
-      { wch: 25 },  // Previous Experience
-      { wch: 12 },  // Agreed to Rules
-      { wch: 15 },  // Registration Date
-      { wch: 15 }   // Registration Time
-    ];
+    // Set column widths dynamically based on content
+    const colWidths = Object.keys(excelData[0] || {}).map(key => {
+      const maxLength = Math.max(
+        key.length,
+        ...excelData.map(row => String(row[key] || '').length)
+      );
+      return { wch: Math.min(Math.max(maxLength + 2, 10), 50) };
+    });
     ws['!cols'] = colWidths;
 
     // Add worksheet to workbook
-    XLSX.utils.book_append_sheet(wb, ws, 'Participant Registrations');
+    const sheetName = specificEventId ? eventTitle : 'All_Events_Registrations';
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
 
     // Generate filename with timestamp
     const timestamp = new Date().toISOString().split('T')[0];
-    const filename = `Hackathon_Registrations_${timestamp}.xlsx`;
+    const filename = `${eventTitle}_Registrations_${timestamp}.xlsx`;
 
     // Save file
     XLSX.writeFile(wb, filename);
@@ -107,6 +177,11 @@ export function ParticipantRegistrationManager({ onClose }: ParticipantRegistrat
   const uniqueColleges = Array.from(
     new Set(allRegistrations?.map(reg => reg.collegeUniversity) || [])
   ).sort();
+
+  // Get unique events that have registrations
+  const eventsWithRegistrations = events?.filter(event => 
+    allRegistrations?.some(reg => reg.eventId === event._id)
+  ) || [];
 
   return (
     <div className="fixed inset-0 bg-charcoal/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -180,7 +255,21 @@ export function ParticipantRegistrationManager({ onClose }: ParticipantRegistrat
           </div>
 
           {/* Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <div>
+              <label className="block text-silver/80 text-sm font-medium mb-2">Filter by Event</label>
+              <select
+                value={selectedEvent}
+                onChange={(e) => setSelectedEvent(e.target.value)}
+                className="cosmic-select"
+              >
+                <option value="all">All Events</option>
+                {eventsWithRegistrations.map(event => (
+                  <option key={event._id} value={event._id}>{event.title}</option>
+                ))}
+              </select>
+            </div>
+
             <div>
               <label className="block text-silver/80 text-sm font-medium mb-2">Filter by College</label>
               <select
@@ -211,14 +300,65 @@ export function ParticipantRegistrationManager({ onClose }: ParticipantRegistrat
 
             <div className="flex items-end">
               <button
-                onClick={exportToExcel}
+                onClick={() => exportToExcel()}
                 className="w-full px-4 py-3 bg-green-500/20 text-green-400 rounded-xl hover:bg-green-500/30 transition-colors font-medium flex items-center justify-center gap-2"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                Export to Excel
+                Export Filtered
               </button>
+            </div>
+          </div>
+
+          {/* Export Options */}
+          <div className="mb-4">
+            <label className="block text-silver/80 text-sm font-medium mb-2">📊 Export Options</label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {/* Export All Events */}
+              <button
+                onClick={() => exportToExcel()}
+                className="px-4 py-3 bg-blue-500/20 text-blue-400 rounded-xl hover:bg-blue-500/30 transition-colors font-medium flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                Export All Events
+              </button>
+              
+              {/* Export Specific Event */}
+              {selectedEvent !== "all" && (
+                <button
+                  onClick={() => exportToExcel(selectedEvent as Id<"events">)}
+                  className="px-4 py-3 bg-purple-500/20 text-purple-400 rounded-xl hover:bg-purple-500/30 transition-colors font-medium flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Export Selected Event
+                </button>
+              )}
+              
+              {/* Individual Event Exports */}
+              <div className="relative">
+                <select
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      exportToExcel(e.target.value as Id<"events">);
+                      e.target.value = ""; // Reset selection
+                    }
+                  }}
+                  className="cosmic-select"
+                  defaultValue=""
+                >
+                  <option value="">📋 Export Specific Event...</option>
+                  {eventsWithRegistrations.map(event => (
+                    <option key={event._id} value={event._id}>
+                      📊 {event.title} ({allRegistrations?.filter(reg => reg.eventId === event._id).length || 0} registrations)
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
         </div>
@@ -241,6 +381,11 @@ export function ParticipantRegistrationManager({ onClose }: ParticipantRegistrat
                       <p className="text-accent-blue text-sm font-medium">
                         {registration.collegeUniversity} • {registration.departmentYear}
                       </p>
+                      {registration.eventSpecificData?.eventTitle && (
+                        <p className="text-supernova-gold text-sm font-medium mt-1">
+                          🎆 {registration.eventSpecificData.eventTitle}
+                        </p>
+                      )}
                     </div>
                     
                     <div className="flex items-center gap-3">
@@ -249,7 +394,9 @@ export function ParticipantRegistrationManager({ onClose }: ParticipantRegistrat
                         <div>Contact: {registration.contactNumber}</div>
                       </div>
                       <button
-                        onClick={() => handleDeleteRegistration(registration._id)}
+                        onClick={() => {
+                      void handleDeleteRegistration(registration._id);
+                    }}
                         className="p-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors"
                         title="Delete Registration"
                       >
@@ -286,6 +433,43 @@ export function ParticipantRegistrationManager({ onClose }: ParticipantRegistrat
                         </p>
                       </div>
                     )}
+                    
+                    {/* Event-specific data display */}
+                    {registration.eventSpecificData?.projectTitle && (
+                      <div className="p-3 bg-purple-500/10 border border-purple-500/30 rounded-lg">
+                        <h5 className="text-purple-300 text-sm font-medium mb-1">📝 Project</h5>
+                        <p className="text-silver/70 text-sm line-clamp-2">
+                          {registration.eventSpecificData.projectTitle}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {registration.eventSpecificData?.startupName && (
+                      <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                        <h5 className="text-green-300 text-sm font-medium mb-1">🚀 Startup</h5>
+                        <p className="text-silver/70 text-sm line-clamp-2">
+                          {registration.eventSpecificData.startupName}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {registration.eventSpecificData?.selectedGame && (
+                      <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                        <h5 className="text-blue-300 text-sm font-medium mb-1">🎮 Game</h5>
+                        <p className="text-silver/70 text-sm">
+                          {registration.eventSpecificData.selectedGame}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {registration.eventSpecificData?.robotName && (
+                      <div className="p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+                        <h5 className="text-orange-300 text-sm font-medium mb-1">🤖 Robot</h5>
+                        <p className="text-silver/70 text-sm">
+                          {registration.eventSpecificData.robotName}
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-center justify-between pt-3 border-t border-medium-blue/20">
@@ -309,16 +493,17 @@ export function ParticipantRegistrationManager({ onClose }: ParticipantRegistrat
               <div className="text-6xl mb-4">📊</div>
               <h4 className="text-xl font-bold text-silver mb-2">No Registrations Found</h4>
               <p className="text-silver/70 mb-6">
-                {searchTerm || selectedCollege !== "all" || selectedTeamSize !== null
+                {searchTerm || selectedCollege !== "all" || selectedTeamSize !== null || selectedEvent !== "all"
                   ? "Try adjusting your search criteria or filters."
                   : "No participant registrations available yet."}
               </p>
-              {(searchTerm || selectedCollege !== "all" || selectedTeamSize !== null) && (
+              {(searchTerm || selectedCollege !== "all" || selectedTeamSize !== null || selectedEvent !== "all") && (
                 <button
                   onClick={() => {
                     setSearchTerm("");
                     setSelectedCollege("all");
                     setSelectedTeamSize(null);
+                    setSelectedEvent("all");
                   }}
                   className="px-6 py-3 bg-accent-blue hover:bg-accent-blue/80 text-silver font-medium rounded-xl transition-colors"
                 >
@@ -334,19 +519,13 @@ export function ParticipantRegistrationManager({ onClose }: ParticipantRegistrat
           <div className="flex items-center justify-between">
             <div className="text-silver/60 text-sm">
               Showing {filteredRegistrations.length} of {allRegistrations?.length || 0} registrations
+              {selectedEvent !== "all" && events && (
+                <span className="ml-2 text-accent-blue">
+                  • Filtered by: {events.find(e => e._id === selectedEvent)?.title}
+                </span>
+              )}
             </div>
             <div className="flex gap-3">
-              <button
-                onClick={exportToExcel}
-                disabled={filteredRegistrations.length === 0}
-                className={`px-6 py-2 font-medium rounded-lg transition-colors ${
-                  filteredRegistrations.length > 0
-                    ? "bg-green-500/20 text-green-400 hover:bg-green-500/30"
-                    : "bg-medium-blue/20 text-silver/50 cursor-not-allowed"
-                }`}
-              >
-                📊 Export Excel
-              </button>
               <button
                 onClick={onClose}
                 className="px-6 py-2 bg-medium-blue/40 hover:bg-medium-blue/60 text-silver font-medium rounded-lg transition-colors"

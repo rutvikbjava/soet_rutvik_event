@@ -4,12 +4,13 @@ import { toast } from "sonner";
 import { api } from "../../convex/_generated/api";
 import { Id as ConvexId } from "../../convex/_generated/dataModel";
 import { CreateEventModal } from "./CreateEventModal";
-import { ParticipantRegistrationManager } from "./ParticipantRegistrationManager";
+import { EventExport } from "./EventExport";
 import { JudgeAssignmentModal } from "./JudgeAssignmentModal";
 import { EventAnalyticsModal } from "./EventAnalyticsModal";
 import { EventTemplatesModal } from "./EventTemplatesModal";
 import { AwardsManagementModal } from "./AwardsManagementModal";
 import { AllEventsManagerModal } from "./AllEventsManagerModal";
+import { NewsListManager } from "./NewsListManager";
 
 interface OrganizerDashboardProps {
   profile: any;
@@ -18,12 +19,13 @@ interface OrganizerDashboardProps {
 
 export function OrganizerDashboard({ profile, stats }: OrganizerDashboardProps) {
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showParticipantManager, setShowParticipantManager] = useState(false);
+  const [showEventExport, setShowEventExport] = useState(false);
   const [showJudgeAssignment, setShowJudgeAssignment] = useState(false);
   const [showEventAnalytics, setShowEventAnalytics] = useState(false);
   const [showEventTemplates, setShowEventTemplates] = useState(false);
   const [showAwardsManagement, setShowAwardsManagement] = useState(false);
   const [showAllEventsManager, setShowAllEventsManager] = useState(false);
+  const [showNewsManager, setShowNewsManager] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<{
     id: ConvexId<"events">;
     title: string;
@@ -192,7 +194,6 @@ export function OrganizerDashboard({ profile, stats }: OrganizerDashboardProps) 
             </div>
 
             <div
-              onClick={() => setShowParticipantManager(true)}
               className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:border-nebula-pink/50 transition-all duration-300 hover:scale-105 transform cursor-pointer"
             >
               <div className="flex items-center gap-4 mb-4">
@@ -200,13 +201,35 @@ export function OrganizerDashboard({ profile, stats }: OrganizerDashboardProps) 
                   <span className="text-xl">👥</span>
                 </div>
                 <div>
-                  <h4 className="text-lg font-bold text-starlight-white">Manage Participants</h4>
-                  <p className="text-starlight-white/70 text-sm">View registrations & teams</p>
+                  <h4 className="text-lg font-bold text-starlight-white">Event Registrations</h4>
+                  <p className="text-starlight-white/70 text-sm">View & export event registrations</p>
                 </div>
               </div>
-              <button className="w-full px-4 py-2 bg-nebula-pink hover:bg-nebula-pink/80 text-starlight-white rounded-lg transition-colors text-sm font-medium">
-                Manage Participants
-              </button>
+              <div className="grid grid-cols-1 gap-2">
+                {myEvents.length > 0 ? (
+                  myEvents.slice(0, 2).map((event) => (
+                    <button 
+                      key={event._id}
+                      onClick={() => {
+                        setSelectedEvent({
+                          id: event._id,
+                          title: event.title,
+                          judges: event.judges || []
+                        });
+                        setShowEventExport(true);
+                      }}
+                      className="w-full px-4 py-2 bg-nebula-pink hover:bg-nebula-pink/80 text-starlight-white rounded-lg transition-colors text-sm font-medium flex items-center justify-between"
+                    >
+                      <span>{event.title}</span>
+                      <span>📊</span>
+                    </button>
+                  ))
+                ) : (
+                  <button className="w-full px-4 py-2 bg-nebula-pink/50 text-starlight-white/50 rounded-lg text-sm font-medium cursor-not-allowed">
+                    No events yet
+                  </button>
+                )}
+              </div>
             </div>
 
             <div
@@ -271,6 +294,24 @@ export function OrganizerDashboard({ profile, stats }: OrganizerDashboardProps) 
                 Manage Awards
               </button>
             </div>
+
+            <div
+              onClick={() => setShowNewsManager(true)}
+              className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:border-supernova-gold/50 transition-all duration-300 hover:scale-105 transform cursor-pointer"
+            >
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-supernova-gold to-plasma-orange rounded-xl flex items-center justify-center">
+                  <span className="text-xl">📰</span>
+                </div>
+                <div>
+                  <h4 className="text-lg font-bold text-starlight-white">News & Updates</h4>
+                  <p className="text-starlight-white/70 text-sm">Create and manage news</p>
+                </div>
+              </div>
+              <button className="w-full px-4 py-2 bg-gradient-to-r from-supernova-gold to-plasma-orange text-space-navy rounded-lg hover:opacity-90 transition-opacity text-sm font-bold">
+                Manage News
+              </button>
+            </div>
           </div>
         </div>
 
@@ -284,6 +325,15 @@ export function OrganizerDashboard({ profile, stats }: OrganizerDashboardProps) 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {myEvents.map((event) => (
                 <div key={event._id} className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-6 hover:border-supernova-gold/50 transition-all duration-300 group">
+                  {event.eventImage && (
+                    <div className="h-32 mb-4 overflow-hidden rounded-lg">
+                      <img 
+                        src={event.eventImage} 
+                        alt={event.title} 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
                   <div className="flex items-start justify-between mb-4">
                     <h4 className="text-lg font-bold text-starlight-white group-hover:text-supernova-gold transition-colors">
                       {event.title}
@@ -363,10 +413,28 @@ export function OrganizerDashboard({ profile, stats }: OrganizerDashboardProps) 
         <CreateEventModal onClose={() => setShowCreateModal(false)} />
       )}
 
-      {showParticipantManager && (
-        <ParticipantRegistrationManager
-          onClose={() => setShowParticipantManager(false)}
-        />
+      {showEventExport && selectedEvent && (
+        <div className="fixed inset-0 bg-charcoal/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-dark-blue/95 border border-medium-blue/30 rounded-xl w-full max-w-2xl overflow-hidden shadow-2xl">
+            <div className="flex items-center justify-between p-4 border-b border-medium-blue/30">
+              <h2 className="text-xl font-bold text-silver">
+                {selectedEvent.title} - Registrations
+              </h2>
+              <button
+                onClick={() => {
+                  setShowEventExport(false);
+                  setSelectedEvent(null);
+                }}
+                className="text-silver/70 hover:text-silver p-1"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-6">
+              <EventExport eventId={selectedEvent.id} />
+            </div>
+          </div>
+        </div>
       )}
 
       {showJudgeAssignment && selectedEvent && (
@@ -414,6 +482,33 @@ export function OrganizerDashboard({ profile, stats }: OrganizerDashboardProps) 
           onClose={() => setShowAllEventsManager(false)}
           onStatusUpdate={(eventId, status) => void handleStatusUpdate(eventId, status)}
         />
+      )}
+
+      {showNewsManager && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-space-navy/95 backdrop-blur-xl border border-white/20 rounded-2xl w-full max-w-7xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-white/10">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-starlight-white">News & Updates Management</h2>
+                <button
+                  onClick={() => setShowNewsManager(false)}
+                  className="text-starlight-white/60 hover:text-starlight-white transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div className="p-6">
+              <NewsListManager
+                authorEmail={profile.email || ""}
+                authorName={`${profile.firstName} ${profile.lastName}`}
+                isAdmin={false}
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
