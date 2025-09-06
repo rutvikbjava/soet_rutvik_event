@@ -23,9 +23,17 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
     navigator.serviceWorker.register('/sw.js')
       .then((registration) => {
         console.log('SW registered: ', registration);
+        
+        // Listen for updates
+        registration.addEventListener('updatefound', () => {
+          console.log('New service worker version available');
+        });
       })
       .catch((registrationError) => {
-        console.log('SW registration failed: ', registrationError);
+        console.warn('SW registration failed: ', registrationError);
+        
+        // Don't let service worker errors break the app
+        // The app should work fine without the service worker
       });
   });
 }

@@ -14,8 +14,23 @@ const STATIC_ASSETS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(STATIC_ASSETS))
+      .then(cache => {
+        // Filter out any potentially problematic URLs
+        const validAssets = STATIC_ASSETS.filter(asset => {
+          try {
+            const url = new URL(asset, self.location.origin);
+            return url.protocol === 'http:' || url.protocol === 'https:';
+          } catch (e) {
+            console.warn('Invalid asset URL:', asset);
+            return false;
+          }
+        });
+        return cache.addAll(validAssets);
+      })
       .then(() => self.skipWaiting())
+      .catch(err => {
+        console.error('Service worker installation failed:', err);
+      })
   );
 });
 
@@ -30,14 +45,50 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
-    }).then(() => self.clients.claim())
+    })
+    .then(() => self.clients.claim())
+    .catch(err => {
+      console.error('Service worker activation failed:', err);
+    })
   );
 });
+
+// Helper function to check if a request/response can be cached
+function isCacheable(request, response) {
+  const url = new URL(request.url);
+  
+  // Skip unsupported schemes
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    return false;
+  }
+  
+  // Skip chrome extensions and other unsupported schemes
+  if (url.protocol === 'chrome-extension:' || url.protocol === 'moz-extension:') {
+    return false;
+  }
+  
+  // Skip partial responses (206), redirects, and errors
+  if (response.status === 206 || response.status >= 300) {
+    return false;
+  }
+  
+  // Only cache GET requests
+  if (request.method !== 'GET') {
+    return false;
+  }
+  
+  return true;
+}
 
 // Fetch event - serve from cache with network fallback
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
+
+  // Skip unsupported schemes entirely
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    return;
+  }
 
   // Handle API requests (Convex)
   if (url.origin.includes('convex.cloud') || url.pathname.includes('/api/')) {
@@ -47,8 +98,10 @@ self.addEventListener('fetch', (event) => {
           if (response) {
             // Return cached response and update cache in background
             fetch(request).then(networkResponse => {
-              if (networkResponse.ok) {
-                cache.put(request, networkResponse.clone());
+              if (networkResponse.ok && isCacheable(request, networkResponse)) {
+                cache.put(request, networkResponse.clone()).catch(err => {
+                  console.warn('Failed to cache API response:', err);
+                });
               }
             }).catch(() => {
               // Network failed, but we have cache
@@ -58,8 +111,10 @@ self.addEventListener('fetch', (event) => {
 
           // No cache, fetch from network
           return fetch(request).then(networkResponse => {
-            if (networkResponse.ok) {
-              cache.put(request, networkResponse.clone());
+            if (networkResponse.ok && isCacheable(request, networkResponse)) {
+              cache.put(request, networkResponse.clone()).catch(err => {
+                console.warn('Failed to cache API response:', err);
+              });
             }
             return networkResponse;
           }).catch(() => {
@@ -81,10 +136,12 @@ self.addEventListener('fetch', (event) => {
 
       return fetch(request).then(networkResponse => {
         // Cache successful responses
-        if (networkResponse.ok && request.method === 'GET') {
+        if (networkResponse.ok && isCacheable(request, networkResponse)) {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then(cache => {
-            cache.put(request, responseToCache);
+            cache.put(request, responseToCache).catch(err => {
+              console.warn('Failed to cache static asset:', err);
+            });
           });
         }
         return networkResponse;
