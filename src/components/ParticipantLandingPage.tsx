@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { ParticipantTestPage } from "./ParticipantTestPage";
@@ -19,10 +19,14 @@ export function ParticipantLandingPage({ onSwitchToOrganizer }: ParticipantLandi
   const [showPreQualifierTests, setShowPreQualifierTests] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const events = useQuery(api.events.list, {});
-  const publishedEvents = events?.filter(event => event.status === "published") || [];
+  // Use optimized query for better performance
+  const events = useQuery(api.events.listPublished, { limit: 20 });
+  const publishedEvents = useMemo(() => {
+    if (!events) return [];
+    return events.slice(0, 20); // Already filtered by published status in query
+  }, [events]);
   const allEvents = events || [];
-  const testNotification = useQuery(api.preQualifierTests.getUpcomingTestsNotification);
+  // const testNotification = useQuery(api.preQualifierTests.getUpcomingTestsNotification); // Commented out as it's not used
   const participatingInstitutions = useQuery(api.participatingInstitutions.getActiveInstitutions);
   const activeSponsors = useQuery(api.participatingInstitutions.getActiveSponsors);
 
@@ -36,12 +40,16 @@ export function ParticipantLandingPage({ onSwitchToOrganizer }: ParticipantLandi
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-supernova-gold to-plasma-orange rounded-full flex items-center justify-center">
-                <span className="text-space-navy font-bold text-sm sm:text-lg">🚀</span>
+              <img 
+                src="/rest.png" 
+                alt="Technical Fest Logo" 
+                className="h-10 w-auto sm:h-12 md:h-14 object-contain max-w-[120px] sm:max-w-[140px] md:max-w-[160px]"
+              />
+              <div className="hidden sm:block">
+                <span className="text-lg md:text-xl font-bold text-starlight-white bg-gradient-to-r from-supernova-gold to-plasma-orange bg-clip-text text-transparent">
+                  Supernova
+                </span>
               </div>
-              <span className="text-lg sm:text-xl lg:text-2xl font-bold text-starlight-white">
-                Technical Fest
-              </span>
             </div>
 
             {/* Desktop Navigation */}
@@ -52,27 +60,6 @@ export function ParticipantLandingPage({ onSwitchToOrganizer }: ParticipantLandi
               >
                 Register Now
               </button>
-
-              <div className="relative">
-                <button
-                  onClick={() => setShowPreQualifierTests(true)}
-                  className="px-3 xl:px-6 py-2 bg-gradient-to-r from-accent-blue to-electric-blue text-starlight-white font-bold rounded-lg hover:scale-105 transform transition-all duration-300 flex items-center gap-2 shadow-lg backdrop-blur-sm text-sm xl:text-base"
-                >
-                  <span>🎯</span>
-                  <span className="hidden xl:inline">Pre-Qualifier Tests</span>
-                  <span className="xl:hidden">Tests</span>
-                </button>
-
-                {/* Test notification badge */}
-                {testNotification && (testNotification.hasActiveTests || testNotification.hasUpcomingTests) && (
-                  <div className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
-                    <span className="text-white text-xs font-bold">
-                      {(testNotification.activeTestsCount || 0) + (testNotification.upcomingTestsCount || 0)}
-                    </span>
-                  </div>
-                )}
-              </div>
-
 
               <button
                 onClick={onSwitchToOrganizer}
@@ -113,28 +100,6 @@ export function ParticipantLandingPage({ onSwitchToOrganizer }: ParticipantLandi
                 >
                   🚀 Register Now
                 </button>
-
-                <div className="relative">
-                  <button
-                    onClick={() => {
-                      setShowPreQualifierTests(true);
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className="w-full px-4 py-3 bg-gradient-to-r from-accent-blue to-electric-blue text-starlight-white font-bold rounded-lg text-center touch-manipulation"
-                  >
-                    🎯 Pre-Qualifier Tests
-                  </button>
-
-                  {/* Test notification badge for mobile */}
-                  {testNotification && (testNotification.hasActiveTests || testNotification.hasUpcomingTests) && (
-                    <div className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-xs font-bold">
-                        {(testNotification.activeTestsCount || 0) + (testNotification.upcomingTestsCount || 0)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
 
                 <button
                   onClick={() => {
@@ -192,7 +157,7 @@ export function ParticipantLandingPage({ onSwitchToOrganizer }: ParticipantLandi
           {/* Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 max-w-4xl mx-auto px-4 sm:px-0">
             <div className="text-center bg-space-navy/20 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-white/10">
-              <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-supernova-gold mb-2">500+</div>
+              <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-supernova-gold mb-2">5000+</div>
               <div className="text-sm sm:text-base text-starlight-white/70">Participants</div>
             </div>
             <div className="text-center bg-space-navy/20 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-white/10">
@@ -200,7 +165,7 @@ export function ParticipantLandingPage({ onSwitchToOrganizer }: ParticipantLandi
               <div className="text-sm sm:text-base text-starlight-white/70">Prize Pool</div>
             </div>
             <div className="text-center bg-space-navy/20 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-white/10">
-              <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-nebula-pink mb-2">48hrs</div>
+              <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-nebula-pink mb-2">6hrs</div>
               <div className="text-sm sm:text-base text-starlight-white/70">Coding Marathon</div>
             </div>
           </div>
@@ -292,12 +257,6 @@ export function ParticipantLandingPage({ onSwitchToOrganizer }: ParticipantLandi
                   className="px-8 py-3 bg-gradient-to-r from-supernova-gold to-plasma-orange text-space-navy font-bold rounded-xl hover:scale-105 transform transition-all duration-300 shadow-xl shadow-supernova-gold/30"
                 >
                   🚀 Register Now
-                </button>
-                <button
-                  onClick={() => setShowPreQualifierTests(true)}
-                  className="px-8 py-3 border-2 border-electric-blue text-electric-blue font-bold rounded-xl hover:bg-electric-blue hover:text-space-navy transition-all duration-300"
-                >
-                  🎯 Take Pre-Qualifier Tests
                 </button>
               </div>
             </div>
@@ -410,25 +369,6 @@ export function ParticipantLandingPage({ onSwitchToOrganizer }: ParticipantLandi
             >
               Register Now
             </button>
-
-            <div className="relative">
-              <button
-                onClick={() => setShowPreQualifierTests(true)}
-                className="px-6 py-2 bg-gradient-to-r from-accent-blue to-electric-blue text-starlight-white font-bold rounded-lg hover:scale-105 transform transition-all duration-300 flex items-center gap-2"
-              >
-                <span>🎯</span>
-                Pre-Qualifier Tests
-              </button>
-
-              {/* Test notification badge */}
-              {testNotification && (testNotification.hasActiveTests || testNotification.hasUpcomingTests) && (
-                <div className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">
-                    {(testNotification.activeTestsCount || 0) + (testNotification.upcomingTestsCount || 0)}
-                  </span>
-                </div>
-              )}
-            </div>
 
             <button
               onClick={onSwitchToOrganizer}

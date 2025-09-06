@@ -1,8 +1,5 @@
-import { useState } from "react";
+import { useState, memo } from "react";
 import { Link } from "react-router-dom";
-import { useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { toast } from "sonner";
 import { EnhancedRegistrationModal } from "./EnhancedRegistrationModal";
 
 interface EventCardProps {
@@ -10,7 +7,7 @@ interface EventCardProps {
   showRegisterButton?: boolean;
 }
 
-export function EventCard({ event, showRegisterButton = false }: EventCardProps) {
+export const EventCard = memo(function EventCard({ event, showRegisterButton = false }: EventCardProps) {
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
 
 
@@ -47,9 +44,6 @@ export function EventCard({ event, showRegisterButton = false }: EventCardProps)
             <h3 className="text-xl font-bold text-starlight-white mb-1 group-hover:text-supernova-gold transition-colors">
               {event.title}
             </h3>
-            <p className="text-starlight-white/80 text-sm">
-              by {event.organizer.name}
-            </p>
           </div>
         </div>
 
@@ -134,7 +128,7 @@ export function EventCard({ event, showRegisterButton = false }: EventCardProps)
                 {event.prizes.slice(0, 2).map((prize: any, index: number) => (
                   <div key={index} className="text-starlight-white/60 text-xs">
                     {prize.position}: {prize.prize}
-                    {prize.amount && ` ($${prize.amount})`}
+                    {prize.amount && ` (₹${prize.amount})`}
                   </div>
                 ))}
               </div>
@@ -172,4 +166,4 @@ export function EventCard({ event, showRegisterButton = false }: EventCardProps)
       )}
     </>
   );
-}
+});

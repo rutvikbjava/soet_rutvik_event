@@ -197,7 +197,7 @@ export function AdminDashboard({ profile, stats }: AdminDashboardProps) {
                   <tr key={event._id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                     <td className="py-4">
                       <div className="text-starlight-white font-medium">{event.title}</div>
-                      <div className="text-starlight-white/50 text-sm">by {event.organizer.name}</div>
+                      {event.organizer.name && <div className="text-starlight-white/50 text-sm">by {event.organizer.name}</div>}
                     </td>
                     <td className="py-4">
                       <span className="px-2 py-1 bg-cosmic-purple/30 text-starlight-white rounded text-sm">

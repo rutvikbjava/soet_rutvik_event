@@ -18,7 +18,8 @@ export const deleteAllEvents = mutation({
 export const list = query({
   args: {
     category: v.optional(v.string()),
-    status: v.optional(v.string())
+    status: v.optional(v.string()),
+    limit: v.optional(v.number())
   },
   returns: v.array(v.object({
     _id: v.id("events"),
@@ -52,41 +53,158 @@ export const list = query({
     })
   })),
   handler: async (ctx, args) => {
-    let events;
-    
+    // Use indexes for better performance
     if (args.category) {
-      events = await ctx.db
+      const events = await ctx.db
         .query("events")
         .withIndex("by_category", (q) => q.eq("category", args.category!))
-        .collect();
+        .order("desc")
+        .take(args.limit || 50);
+      
+      return await processEventsWithOrganizers(ctx, events);
     } else if (args.status) {
-      events = await ctx.db
+      const events = await ctx.db
         .query("events")
         .withIndex("by_status", (q) => q.eq("status", args.status as any))
-        .collect();
+        .order("desc")
+        .take(args.limit || 50);
+      
+      return await processEventsWithOrganizers(ctx, events);
     } else {
-      events = await ctx.db.query("events").collect();
+      const events = await ctx.db
+        .query("events")
+        .order("desc")
+        .take(args.limit || 50);
+      
+      return await processEventsWithOrganizers(ctx, events);
+    }
+  },
+});
+
+// Helper function to process events with organizer information
+async function processEventsWithOrganizers(ctx: any, events: any[]) {
+  // Fast return if no events
+  if (events.length === 0) {
+    return [];
+  }
+  
+  // Get unique organizer IDs to reduce redundant queries
+  const uniqueOrganizerIds = [...new Set(events.map(e => e.organizerId))];
+  
+  // Batch fetch organizers and profiles
+  const [organizers, organizerProfiles] = await Promise.all([
+    Promise.all(uniqueOrganizerIds.map(id => ctx.db.get(id))),
+    Promise.all(uniqueOrganizerIds.map(id => 
+      ctx.db
+        .query("userProfiles")
+        .withIndex("by_user", (q: any) => q.eq("userId", id))
+        .first()
+    ))
+  ]);
+  
+  // Create organizer lookup maps
+  const organizerMap = new Map();
+  const profileMap = new Map();
+  
+  uniqueOrganizerIds.forEach((id, index) => {
+    organizerMap.set(id, organizers[index]);
+    profileMap.set(id, organizerProfiles[index]);
+  });
+  
+  // Map events with organizer information using lookup maps
+  const eventsWithOrganizers = events.map((event) => {
+    const organizer = organizerMap.get(event.organizerId);
+    const organizerProfile = profileMap.get(event.organizerId);
+    
+    return {
+      ...event,
+      organizer: {
+        name: organizer?.name || "",
+        email: organizer?.email,
+        profile: organizerProfile
+      }
+    };
+  });
+  
+  return eventsWithOrganizers;
+}
+
+// Optimized query for published events on landing page
+export const listPublished = query({
+  args: {
+    limit: v.optional(v.number())
+  },
+  returns: v.array(v.object({
+    _id: v.id("events"),
+    _creationTime: v.number(),
+    title: v.string(),
+    description: v.string(),
+    category: v.string(),
+    startDate: v.string(),
+    endDate: v.string(),
+    location: v.string(),
+    maxParticipants: v.number(),
+    registrationDeadline: v.string(),
+    status: v.union(v.literal("draft"), v.literal("published"), v.literal("ongoing"), v.literal("completed")),
+    organizerId: v.id("users"),
+    judges: v.array(v.id("users")),
+    requirements: v.array(v.string()),
+    prizes: v.array(v.object({
+      position: v.string(),
+      prize: v.string(),
+      amount: v.optional(v.number())
+    })),
+    bannerImage: v.optional(v.string()),
+    eventImage: v.optional(v.string()),
+    registrationFee: v.optional(v.number()),
+    paymentLink: v.optional(v.string()),
+    tags: v.array(v.string()),
+    organizer: v.object({
+      name: v.string(),
+      email: v.optional(v.string()),
+      profile: v.any()
+    })
+  })),
+  handler: async (ctx, args) => {
+    // Specifically query published events with limit
+    const events = await ctx.db
+      .query("events")
+      .withIndex("by_status", (q) => q.eq("status", "published"))
+      .order("desc")
+      .take(args.limit || 20);
+    
+    // Fast return if no events
+    if (events.length === 0) {
+      return [];
     }
     
-    // Get organizer details for each event
-    const eventsWithOrganizers = await Promise.all(
-      events.map(async (event) => {
-        const organizer = await ctx.db.get(event.organizerId);
-        const organizerProfile = await ctx.db
-          .query("userProfiles")
-          .withIndex("by_user", (q) => q.eq("userId", event.organizerId))
-          .first();
-        
-        return {
-          ...event,
-          organizer: {
-            name: organizer?.name || "Unknown",
-            email: organizer?.email,
-            profile: organizerProfile
-          }
-        };
-      })
+    // Get unique organizer IDs to reduce redundant queries
+    const uniqueOrganizerIds = [...new Set(events.map(e => e.organizerId))];
+    
+    // Batch fetch organizers only (skip profiles for better performance on landing page)
+    const organizers = await Promise.all(
+      uniqueOrganizerIds.map(id => ctx.db.get(id))
     );
+    
+    // Create organizer lookup map
+    const organizerMap = new Map();
+    uniqueOrganizerIds.forEach((id, index) => {
+      organizerMap.set(id, organizers[index]);
+    });
+    
+    // Map events with minimal organizer information for faster loading
+    const eventsWithOrganizers = events.map((event) => {
+      const organizer = organizerMap.get(event.organizerId);
+      
+      return {
+        ...event,
+        organizer: {
+          name: organizer?.name || "",
+          email: organizer?.email,
+          profile: null // Skip profile loading for landing page performance
+        }
+      };
+    });
     
     return eventsWithOrganizers;
   },
@@ -158,7 +276,7 @@ export const getById = query({
     return {
       ...event,
       organizer: {
-        name: organizer?.name || "Unknown",
+        name: organizer?.name || "",
         email: organizer?.email,
         profile: organizerProfile
       },

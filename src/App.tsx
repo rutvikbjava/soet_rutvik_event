@@ -1,14 +1,23 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
 import { Toaster } from "sonner";
-import { AuthWrapper } from "./components/AuthWrapper";
-import { ParticipantLandingPage } from "./components/ParticipantLandingPage";
-import { SuperAdminLogin } from "./components/SuperAdminLogin";
-import { SuperAdminDashboard } from "./components/SuperAdminDashboard";
 import { SimpleVideoBackground } from "./components/SimpleVideoBackground";
-import { EventPage } from "./components/EventPage";
 // Alternative: Use AnimatedGalaxyBackground for more sophisticated effects
 // import { AnimatedGalaxyBackground } from "./components/AnimatedGalaxyBackground";
+
+// Lazy load components for better performance
+const AuthWrapper = lazy(() => import("./components/AuthWrapper").then(module => ({ default: module.AuthWrapper })));
+const ParticipantLandingPage = lazy(() => import("./components/ParticipantLandingPage").then(module => ({ default: module.ParticipantLandingPage })));
+const SuperAdminLogin = lazy(() => import("./components/SuperAdminLogin").then(module => ({ default: module.SuperAdminLogin })));
+const SuperAdminDashboard = lazy(() => import("./components/SuperAdminDashboard").then(module => ({ default: module.SuperAdminDashboard })));
+const EventPage = lazy(() => import("./components/EventPage").then(module => ({ default: module.EventPage })));
+
+// Loading component
+const LoadingSpinner = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-supernova-gold"></div>
+  </div>
+);
 
 // Watermark Component
 const Watermark = () => (
@@ -46,7 +55,9 @@ export default function App() {
   if (isSuperAdmin) {
     return (
       <>
-        <SuperAdminDashboard onSignOut={handleSuperAdminSignOut} />
+        <Suspense fallback={<LoadingSpinner />}>
+          <SuperAdminDashboard onSignOut={handleSuperAdminSignOut} />
+        </Suspense>
         <Toaster position="bottom-right" />
         <Watermark />
       </>
@@ -61,19 +72,23 @@ export default function App() {
           <div className="min-h-screen relative overflow-hidden">
             <SimpleVideoBackground />
             <main className="relative z-10">
-              {viewMode === "participant" ? (
-                <ParticipantLandingPage onSwitchToOrganizer={() => setViewMode("organizer")} />
-              ) : (
-                <AuthWrapper />
-              )}
+              <Suspense fallback={<LoadingSpinner />}>
+                {viewMode === "participant" ? (
+                  <ParticipantLandingPage onSwitchToOrganizer={() => setViewMode("organizer")} />
+                ) : (
+                  <AuthWrapper />
+                )}
+              </Suspense>
             </main>
 
             {/* Super Admin Login Modal */}
             {showSuperAdminLogin && (
-              <SuperAdminLogin
-                onSuccess={handleSuperAdminSuccess}
-                onCancel={() => setShowSuperAdminLogin(false)}
-              />
+              <Suspense fallback={<LoadingSpinner />}>
+                <SuperAdminLogin
+                  onSuccess={handleSuperAdminSuccess}
+                  onCancel={() => setShowSuperAdminLogin(false)}
+                />
+              </Suspense>
             )}
 
             <Toaster
@@ -98,7 +113,9 @@ export default function App() {
         <div className="min-h-screen relative overflow-hidden">
           <SimpleVideoBackground />
           <main className="relative z-10">
-            <EventPage />
+            <Suspense fallback={<LoadingSpinner />}>
+              <EventPage />
+            </Suspense>
           </main>
           <Toaster
             theme="dark"

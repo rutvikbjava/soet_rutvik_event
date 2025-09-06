@@ -4,12 +4,11 @@ import { api } from "../../convex/_generated/api";
 
 interface JudgeDashboardProps {
   profile: any;
-  stats: any;
 }
 
-export function JudgeDashboard({ profile, stats }: JudgeDashboardProps) {
+export function JudgeDashboard({ profile }: JudgeDashboardProps) {
   const [showEventDetails, setShowEventDetails] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
   
   const events = useQuery(api.events.list, {});
   const assignedEvents = events?.filter(event => 
@@ -185,7 +184,7 @@ export function JudgeDashboard({ profile, stats }: JudgeDashboardProps) {
                   <div className="flex justify-between items-start mb-4">
                     <div>
                       <h4 className="text-lg font-bold text-starlight-white mb-1">{event.title}</h4>
-                      <p className="text-starlight-white/70 text-sm">by {event.organizer?.name}</p>
+                      {event.organizer?.name && <p className="text-starlight-white/70 text-sm">by {event.organizer?.name}</p>}
                     </div>
                     <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                       event.status === 'published' ? 'bg-supernova-gold/30 text-supernova-gold' :

@@ -45,7 +45,7 @@ export function EventRegistrationModal({ event, onClose }: EventRegistrationModa
 
   const registerForEvent = useMutation(api.events.register);
 
-  const addSkill = () => {
+  const _addSkill = () => {
     if (skillInput.trim() && !formData.skills.includes(skillInput.trim())) {
       setFormData(prev => ({
         ...prev,
@@ -55,7 +55,7 @@ export function EventRegistrationModal({ event, onClose }: EventRegistrationModa
     }
   };
 
-  const removeSkill = (skillToRemove: string) => {
+  const _removeSkill = (skillToRemove: string) => {
     setFormData(prev => ({
       ...prev,
       skills: prev.skills.filter(skill => skill !== skillToRemove)
@@ -172,7 +172,7 @@ export function EventRegistrationModal({ event, onClose }: EventRegistrationModa
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={(e) => void handleSubmit(e)} className="space-y-6">
           {/* Team Leader Option */}
           <div className="bg-white/5 rounded-lg p-4 border border-white/10">
             <label className="flex items-center gap-3">

@@ -53,9 +53,21 @@ window.addEventListener('message', async (message) => {
     sourcemap: false,
     rollupOptions: {
       output: {
-        manualChunks: undefined,
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          convex: ['convex/react'],
+          router: ['react-router-dom'],
+        },
       },
     },
     copyPublicDir: true,
+    chunkSizeWarningLimit: 1000,
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+      },
+    },
   },
 }));

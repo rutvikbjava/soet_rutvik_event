@@ -47,7 +47,7 @@ export function AllEventsManagerModal({ events, onClose, onStatusUpdate }: AllEv
   const getOrganizerName = (organizerId: Id<"users">) => {
     if (!organizerCredentials) return "Loading...";
     const organizer = organizerCredentials.find(cred => cred.linkedUserId === organizerId);
-    return organizer ? `${organizer.firstName} ${organizer.lastName}` : "Unknown Organizer";
+    return organizer ? `${organizer.firstName} ${organizer.lastName}` : "";
   };
 
   const getStatusColor = (status: string) => {

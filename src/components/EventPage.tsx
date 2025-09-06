@@ -96,7 +96,7 @@ export function EventPage() {
                   {event.title}
                 </h1>
                 <p className="text-starlight-white/80 text-lg">
-                  Organized by {event.organizer?.name || 'Unknown Organizer'}
+                  {event.organizer?.name && `Organized by ${event.organizer.name}`}
                 </p>
               </div>
             </div>
@@ -139,7 +139,7 @@ export function EventPage() {
                             <div className="flex items-center justify-between">
                               <span className="text-supernova-gold font-semibold">{prize.position}</span>
                               {prize.amount && (
-                                <span className="text-starlight-white font-bold">${prize.amount}</span>
+                                <span className="text-starlight-white font-bold">₹{prize.amount}</span>
                               )}
                             </div>
                             <p className="text-starlight-white/70 mt-1">{prize.prize}</p>
@@ -226,7 +226,7 @@ export function EventPage() {
                             <span>💰</span>
                             <span>Registration Fee</span>
                           </div>
-                          <p className="text-starlight-white">Rupees {event.registrationFee}</p>
+                          <p className="text-starlight-white">₹{event.registrationFee}</p>
                         </div>
                       )}
                     </div>
