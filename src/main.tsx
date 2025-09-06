@@ -2,6 +2,8 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import { ConvexReactClient } from "convex/react";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./index.css";
 import App from "./App";
@@ -33,6 +35,8 @@ createRoot(document.getElementById("root")!).render(
     <BrowserRouter>
       <ConvexAuthProvider client={convex}>
         <App />
+        <Analytics />
+        <SpeedInsights />
       </ConvexAuthProvider>
     </BrowserRouter>
   </ErrorBoundary>,
