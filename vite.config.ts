@@ -3,7 +3,13 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 
 // https://vite.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode }) => {
+  // Define NODE_ENV for production builds
+  if (mode === 'production') {
+    process.env.NODE_ENV = 'production';
+  }
+  
+  return {
   plugins: [
     react(),
     // The code below enables dev tools like taking screenshots of your site
@@ -70,4 +76,5 @@ window.addEventListener('message', async (message) => {
       },
     },
   },
-}));
+  };
+});
