@@ -3,10 +3,13 @@ import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { SimpleVideoBackground } from "./SimpleVideoBackground";
+import { EventSpecificRegistrationForm } from "./EventSpecificRegistrationForm";
+import { useState } from "react";
 
 export function EventPage() {
   const { eventId } = useParams<{ eventId: Id<"events"> }>();
   const navigate = useNavigate();
+  const [showRegistration, setShowRegistration] = useState(false);
 
   const event = useQuery(api.events.getById, {
     id: eventId!,
@@ -230,6 +233,18 @@ export function EventPage() {
                         </div>
                       )}
                     </div>
+                    
+                    {/* Registration Button */}
+                    {event.status === 'published' && (
+                      <div className="mt-6">
+                        <button
+                          onClick={() => setShowRegistration(true)}
+                          className="w-full px-6 py-3 bg-gradient-to-r from-supernova-gold to-plasma-orange text-space-navy font-bold rounded-lg hover:scale-105 transform transition-all duration-300 shadow-xl"
+                        >
+                          🚀 Register for Event
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Tags */}
@@ -261,6 +276,15 @@ export function EventPage() {
             </div>
           </div>
         </div>
+      
+      {/* Event Registration Modal */}
+      {showRegistration && (
+        <EventSpecificRegistrationForm
+          eventId={eventId!}
+          onClose={() => setShowRegistration(false)}
+          onBack={() => setShowRegistration(false)}
+        />
+      )}
     </div>
   );
 }

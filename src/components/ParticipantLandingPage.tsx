@@ -7,6 +7,7 @@ import { EventSelectionModal } from "./EventSelectionModal";
 import { EventSpecificRegistrationForm } from "./EventSpecificRegistrationForm";
 import { NewsUpdatesSection } from "./NewsUpdatesSection";
 import { Id } from "../../convex/_generated/dataModel";
+import { useMockQuery } from "../lib/mockApi";
 
 interface ParticipantLandingPageProps {
   onSwitchToOrganizer: () => void;
@@ -19,16 +20,27 @@ export function ParticipantLandingPage({ onSwitchToOrganizer }: ParticipantLandi
   const [showPreQualifierTests, setShowPreQualifierTests] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Use optimized query for better performance
-  const events = useQuery(api.events.listPublished, { limit: 20 });
+  // Use optimized query for better performance with fallback to mock data
+  const convexEvents = useQuery(api.events.listPublished, { limit: 20 });
+  const mockEvents = useMockQuery('events.listPublished', { limit: 20 });
+  const convexInstitutions = useQuery(api.participatingInstitutions.getActiveInstitutions);
+  const mockInstitutions = useMockQuery('participatingInstitutions.getActiveInstitutions');
+  const convexSponsors = useQuery(api.participatingInstitutions.getActiveSponsors);
+  const mockSponsors = useMockQuery('participatingInstitutions.getActiveSponsors');
+  
+  // Use Convex data if available, otherwise use mock data
+  const events = convexEvents !== undefined ? convexEvents : mockEvents;
+  const participatingInstitutions = convexInstitutions !== undefined ? convexInstitutions : mockInstitutions;
+  const activeSponsors = convexSponsors !== undefined ? convexSponsors : mockSponsors;
+  
+  // Network status indicator
+  const isUsingMockData = convexEvents === undefined && mockEvents !== undefined;
+  
   const publishedEvents = useMemo(() => {
     if (!events) return [];
     return events.slice(0, 20); // Already filtered by published status in query
   }, [events]);
   const allEvents = events || [];
-  // const testNotification = useQuery(api.preQualifierTests.getUpcomingTestsNotification); // Commented out as it's not used
-  const participatingInstitutions = useQuery(api.participatingInstitutions.getActiveInstitutions);
-  const activeSponsors = useQuery(api.participatingInstitutions.getActiveSponsors);
 
 
   return (
@@ -54,6 +66,11 @@ export function ParticipantLandingPage({ onSwitchToOrganizer }: ParticipantLandi
 
             {/* Desktop Navigation */}
             <div className="hidden lg:flex items-center gap-2 xl:gap-4">
+              {isUsingMockData && (
+                <div className="px-2 py-1 bg-yellow-500/20 text-yellow-300 rounded text-xs font-medium">
+                  Demo Mode
+                </div>
+              )}
               <button
                 onClick={() => setShowEventSelection(true)}
                 className="px-3 xl:px-6 py-2 bg-gradient-to-r from-supernova-gold to-plasma-orange text-space-navy font-bold rounded-lg hover:scale-105 transform transition-all duration-300 shadow-lg backdrop-blur-sm text-sm xl:text-base"

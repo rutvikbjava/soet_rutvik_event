@@ -2,6 +2,7 @@
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
+import { useMockQuery } from "../lib/mockApi";
 
 interface EventSelectionModalProps {
   onClose: () => void;
@@ -9,7 +10,12 @@ interface EventSelectionModalProps {
 }
 
 export function EventSelectionModal({ onClose, onEventSelect }: EventSelectionModalProps) {
-  const events = useQuery(api.events.list, { status: "published" });
+  // Try Convex first, fallback to mock data if network fails
+  const convexEvents = useQuery(api.events.listPublished, { limit: 50 });
+  const mockEvents = useMockQuery('events.listPublished', { limit: 50 });
+  
+  // Use Convex data if available, otherwise use mock data
+  const events = convexEvents !== undefined ? convexEvents : mockEvents;
 
   const handleEventSelect = (eventId: Id<"events">) => {
     onEventSelect(eventId);
@@ -52,6 +58,21 @@ export function EventSelectionModal({ onClose, onEventSelect }: EventSelectionMo
               <p className="text-silver/70 max-w-md mx-auto">
                 Please wait while we fetch the latest events for you!
               </p>
+            </div>
+          ) : events === null ? (
+            // Error state
+            <div className="text-center py-16">
+              <div className="text-6xl mb-4">😔</div>
+              <h3 className="text-2xl font-bold text-silver mb-4">Failed to Load Events</h3>
+              <p className="text-silver/70 max-w-md mx-auto mb-6">
+                We're having trouble loading the events. Please check your internet connection and try again.
+              </p>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-6 py-3 bg-supernova-gold text-space-navy font-bold rounded-lg hover:scale-105 transform transition-all duration-300"
+              >
+                Retry Loading
+              </button>
             </div>
           ) : events.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
